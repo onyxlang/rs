@@ -12,8 +12,8 @@ use crate::{
 pub struct Unit {
     pub program: Weak<RefCell<Program>>,
     pub path: PathBuf,
-    ast: Option<ast::Module>,
-    dst: Option<dst::Module>,
+    ast: Option<ast::Mod>,
+    dst: Option<dst::Mod>,
 }
 
 impl Scope for Unit {

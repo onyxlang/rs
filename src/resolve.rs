@@ -12,13 +12,13 @@ pub trait Resolve<T> {
     fn resolve(&self, scope: &dyn Scope) -> Result<T, Panic>;
 }
 
-impl Resolve<dst::Module> for ast::Module {
-    fn resolve(&self, scope: &dyn Scope) -> Result<dst::Module, Panic> {
-        let mut dst_module = dst::Module::new(scope.path());
+impl Resolve<dst::Mod> for ast::Mod {
+    fn resolve(&self, scope: &dyn Scope) -> Result<dst::Mod, Panic> {
+        let mut dst_module = dst::Mod::new(scope.path());
 
         for body in &self.body {
             match body {
-                ast::BlockBody::Statement(stmt) => match stmt {
+                ast::BlockBody::Stmt(stmt) => match stmt {
                     ast::Statement::VarDecl(var_decl) => {
                         let var = var_decl.resolve(&dst_module)?;
                         dst_module.var_decls.push(Rc::clone(&var));

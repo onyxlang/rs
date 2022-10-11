@@ -7,7 +7,7 @@ pub trait Scope {
     fn find(&self, id: &str) -> Option<Rc<dst::VarDecl>>;
 }
 
-impl Scope for dst::Module {
+impl Scope for dst::Mod {
     fn path(&self) -> String {
         self.path.clone()
     }

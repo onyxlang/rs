@@ -107,7 +107,7 @@ peg::parser! {
 
     rule block_body_el() -> ast::BlockBody
         = it:comment()  { ast::BlockBody::Comment(it) }
-        / it:statement() { ast::BlockBody::Statement(it) }
+        / it:statement() { ast::BlockBody::Stmt(it) }
         / it:expr()      { ast::BlockBody::Expr(it) }
 
     rule block_body() -> Vec<ast::BlockBody>
@@ -127,8 +127,8 @@ peg::parser! {
             )
         }
 
-    pub rule start() -> ast::Module
-        = ___? body:block_body() ___? { ast::Module::new(body) }
+    pub rule start() -> ast::Mod
+        = ___? body:block_body() ___? { ast::Mod::new(body) }
   }
 }
 
@@ -138,7 +138,7 @@ impl From<peg::str::LineCol> for location::Span {
     }
 }
 
-pub fn parse(path: &str, source: &str) -> Result<ast::Module, Panic> {
+pub fn parse(path: &str, source: &str) -> Result<ast::Mod, Panic> {
     match onyx_parser::start(source) {
         Ok(result) => Ok(result),
         Err(err) => Err(Panic::new(
@@ -158,9 +158,9 @@ mod test {
     pub fn test_basic() {
         let input1 = r#"let x = true; @assert(x)"#;
 
-        let ast = ast::Module {
+        let ast = ast::Mod {
             body: vec![
-                ast::BlockBody::Statement(ast::Statement::VarDecl(ast::VarDecl::new(
+                ast::BlockBody::Stmt(ast::Statement::VarDecl(ast::VarDecl::new(
                     Span::incomplete(0, 13),
                     ast::Id::new(Span::incomplete(4, 5), "x".to_string()),
                     ast::Expr::BoolLiteral(ast::Bool::new(Span::incomplete(8, 12), true)),
@@ -185,7 +185,7 @@ mod test {
     pub fn text_comment() {
         let input = r#"# this is a comment"#;
 
-        let ast = ast::Module {
+        let ast = ast::Mod {
             body: vec![ast::BlockBody::Comment(ast::Comment::new(
                 Span::incomplete(0, 19),
                 " this is a comment".to_string(),
@@ -199,7 +199,7 @@ mod test {
     pub fn test_binop() {
         let input1 = r#"a = b"#;
 
-        let ast = ast::Module {
+        let ast = ast::Mod {
             body: vec![ast::BlockBody::Expr(ast::Expr::Binop(ast::Binop::new(
                 ast::Expr::IdRef(ast::Id::new(Span::incomplete(0, 1), "a".to_string())),
                 "=".to_string(),

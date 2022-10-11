@@ -6,7 +6,7 @@ pub trait Codegen {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()>;
 }
 
-impl Codegen for dst::Module {
+impl Codegen for dst::Mod {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
         writeln!(w, "pub fn main() void {{")?;
 
