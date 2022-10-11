@@ -25,8 +25,14 @@ pub struct VarDecl {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum BlockBody {
+    Comment(Comment),
     Statement(Statement),
     Expr(Expr),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Comment {
+    pub text: String,
 }
 
 /// An ASt module corresponds to a single source file.

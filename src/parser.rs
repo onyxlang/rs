@@ -21,6 +21,11 @@ peg::parser! {
 
     rule term() = nl() / (_? (";" / &eof() / &"}" / &"]" / &")"))
 
+    /// A comment spans until the end of the line.
+    rule comment() -> ast::Comment
+        = "#" text:$([^ '\n' | '\r']*) (&nl() / &eof())
+        { ast::Comment { text: text.to_string() } }
+
     rule id() -> &'input str
         = $(
             ("_" / ['a'..='z' | 'A'..='Z'])
@@ -52,7 +57,8 @@ peg::parser! {
         / terminated_expr()
 
     rule block_body_el() -> ast::BlockBody
-        = a:statement() { ast::BlockBody::Statement(a) }
+        = a: comment()  { ast::BlockBody::Comment(a) }
+        / a:statement() { ast::BlockBody::Statement(a) }
         / a:expr()      { ast::BlockBody::Expr(a) }
 
     rule block_body() -> Vec<ast::BlockBody>
@@ -101,5 +107,18 @@ mod test {
         assert_eq!(onyx_parser::start(input1).as_ref(), Ok(&ast));
         assert_eq!(onyx_parser::start(input2).as_ref(), Ok(&ast));
         assert_eq!(onyx_parser::start(input3).as_ref(), Ok(&ast));
+    }
+
+    #[test]
+    pub fn text_comment() {
+        let input = r#"# this is a comment"#;
+
+        let ast = ast::Module {
+            body: vec![ast::BlockBody::Comment(ast::Comment {
+                text: " this is a comment".to_string(),
+            })],
+        };
+
+        assert_eq!(onyx_parser::start(input).as_ref(), Ok(&ast));
     }
 }

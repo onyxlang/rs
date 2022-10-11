@@ -36,6 +36,9 @@ impl Resolve<dst::Module> for ast::Module {
 
                     dst_module.main.push(dst::Statement::TerminatedExpr(expr));
                 }
+                ast::BlockBody::Comment(_) => {
+                    // Do nothing.
+                }
             }
         }
 
