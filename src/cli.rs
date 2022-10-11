@@ -1,38 +1,83 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::program::Program;
-use clap::Parser;
+use clap::{command, Parser};
+
+// I want the default command to be `run`.
 
 #[derive(Parser)]
 #[clap(author = "Onyx Contributors <inbox@onyxlang.org>")]
-#[clap(version)]
 #[clap(about = "The canonical Onyx compiler", long_about = None)]
 pub struct Cli {
-    #[clap(value_parser)]
-    input: String,
+    #[command(subcommand)]
+    action: Action,
 
-    #[clap(long, value_parser, default_value = "./.cache")]
+    #[clap(
+        long,
+        value_parser,
+        default_value = ".cache",
+        help = "Path to the cache directory"
+    )]
     cache: String,
+}
 
-    #[clap(long, value_parser, default_value = "zig")]
-    zig: String,
+#[derive(clap::Subcommand)]
+enum Action {
+    #[clap(about = "Run an Onyx program", alias = "r")]
+    Run {
+        #[clap(value_parser, help = "Input file path")]
+        input: String,
+
+        #[clap(
+            long,
+            value_parser,
+            default_value = "zig",
+            help = "Zig executable path"
+        )]
+        zig: String,
+    },
+
+    #[clap(about = "Compile an Onyx program", alias = "c")]
+    Compile {
+        #[clap(value_parser, help = "Input file path")]
+        input: String,
+
+        #[clap(short, long, value_parser, help = "Output executable path")]
+        output: Option<String>,
+
+        #[clap(
+            long,
+            value_parser,
+            default_value = "zig",
+            help = "Zig executable path"
+        )]
+        zig: String,
+    },
 }
 
 impl Cli {
-    /// Compile and run an Onyx file.
-    ///
-    /// ```sh
-    /// $ nx foo.nx
-    /// Hello from Onyx!
-    /// ```
     pub fn run() {
         let cli = Cli::parse();
 
-        let entry_path = Path::new(&cli.input).to_path_buf();
-        let cache_path = Path::new(&cli.cache).to_path_buf();
-        let zig_path = Path::new(&cli.zig).to_path_buf();
+        match cli.action {
+            Action::Run { input, zig } => {
+                let program = Program::new(Path::new(&input).into(), Path::new(&cli.cache).into());
+                Program::run(program, Path::new(&zig).into());
+            }
+            Action::Compile { input, output, zig } => {
+                let program = Program::new(Path::new(&input).into(), Path::new(&cli.cache).into());
 
-        let program = Program::new(entry_path, cache_path, zig_path);
-        Program::run(program);
+                let output_path = match output {
+                    Some(output) => Path::new(&output).into(),
+                    None => {
+                        let mut path = PathBuf::from(&input);
+                        path.set_extension("");
+                        path
+                    }
+                };
+
+                Program::compile(program, output_path, Path::new(&zig).into());
+            }
+        }
     }
 }
