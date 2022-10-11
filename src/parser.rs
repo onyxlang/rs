@@ -40,10 +40,15 @@ peg::parser! {
         = expr:expr() _? ";"
         { ast::Statement::TerminatedExpr(expr) }
 
-    rule expr() -> ast::Expr
-        = a:bool()       { ast::Expr::BoolLiteral(a) }
-        / a:id()         { ast::Expr::IdRef(a.to_string()) }
-        / a:macro_call() { ast::Expr::MacroCall(a) }
+    rule expr() -> ast::Expr = precedence! {
+        x:(@) _? "=" _? y:@ {
+            ast::Expr::Binop(ast::Binop {
+                lhs: Box::new(x), op: "=".to_string(), rhs: Box::new(y) } )}
+        --
+        a:macro_call() { ast::Expr::MacroCall(a) }
+        a:bool()       { ast::Expr::BoolLiteral(a) }
+        a:id()         { ast::Expr::IdRef(a.to_string()) }
+    }
 
     rule var_decl_value() -> ast::Expr
         = _? "=" __? expr:expr() { expr }
@@ -120,5 +125,20 @@ mod test {
         };
 
         assert_eq!(onyx_parser::start(input).as_ref(), Ok(&ast));
+    }
+
+    #[test]
+    pub fn test_binop() {
+        let input1 = r#"a = b"#;
+
+        let ast = ast::Module {
+            body: vec![ast::BlockBody::Expr(ast::Expr::Binop(ast::Binop {
+                lhs: Box::new(ast::Expr::IdRef("a".to_string())),
+                op: "=".to_string(),
+                rhs: Box::new(ast::Expr::IdRef("b".to_string())),
+            }))],
+        };
+
+        assert_eq!(onyx_parser::start(input1).as_ref(), Ok(&ast));
     }
 }

@@ -34,19 +34,30 @@ impl Codegen for dst::Statement {
     }
 }
 
+impl Codegen for dst::VarRef {
+    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+        write!(w, "@\"{}\"", self.decl.id)
+    }
+}
+
 impl Codegen for dst::Expr {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
             dst::Expr::BoolLiteral(b) => write!(w, "{}", b),
-            dst::Expr::VarRef(var) => write!(w, "@\"{}\"", var.id),
+            dst::Expr::VarRef(var) => var.codegen(w),
             dst::Expr::MacroCall(m) => m.codegen(w),
+            dst::Expr::Assignment(a) => {
+                a.lhs.codegen(w)?;
+                write!(w, " = ")?;
+                a.rhs.codegen(w)
+            }
         }
     }
 }
 
 impl Codegen for dst::VarDecl {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "const @\"{}\" = ", self.id)?;
+        write!(w, "var @\"{}\" = ", self.id)?;
         self.expr.codegen(w)?;
         Ok(())
     }
@@ -88,7 +99,23 @@ let a = true
 @assert(a)
             "#,
             r#"pub fn main() void {
-const @"a" = true;
+var @"a" = true;
+@import("std").debug.assert(@"a");
+}
+"#,
+        );
+    }
+    #[test]
+    pub fn test_assignment() {
+        assert_codegen(
+            r#"
+let a = false
+a = true;
+@assert(a)
+            "#,
+            r#"pub fn main() void {
+var @"a" = false;
+@"a" = true;
 @import("std").debug.assert(@"a");
 }
 "#,

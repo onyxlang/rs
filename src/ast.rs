@@ -3,6 +3,14 @@ pub enum Expr {
     BoolLiteral(bool),
     IdRef(String),
     MacroCall(MacroCall),
+    Binop(Binop),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Binop {
+    pub lhs: Box<Expr>,
+    pub op: String,
+    pub rhs: Box<Expr>,
 }
 
 #[derive(PartialEq, Eq, Debug)]

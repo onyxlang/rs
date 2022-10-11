@@ -52,12 +52,38 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
             ast::Expr::BoolLiteral(b) => Ok(Rc::new(dst::Expr::BoolLiteral(*b))),
             ast::Expr::IdRef(id) => {
                 if let Some(var) = scope.find(id) {
-                    Ok(Rc::new(dst::Expr::VarRef(Rc::clone(&var))))
+                    Ok(Rc::new(dst::Expr::VarRef(dst::VarRef {
+                        decl: Rc::clone(&var),
+                    })))
                 } else {
                     Err(format!("Unknown variable: {}", id))
                 }
             }
             ast::Expr::MacroCall(m) => Ok(Rc::new(dst::Expr::MacroCall(m.resolve(scope)?))),
+            ast::Expr::Binop(b) => match b.op.as_str() {
+                "=" => {
+                    let lhs = b.lhs.resolve(scope)?;
+                    let rhs = b.rhs.resolve(scope)?;
+
+                    if let dst::Expr::VarRef(var) = &*lhs {
+                        if var.decl.r#type != rhs.infer_type() {
+                            return Err(format!(
+                                "Type mismatch: {} = {}",
+                                var.decl.r#type,
+                                rhs.infer_type()
+                            ));
+                        }
+
+                        Ok(Rc::new(dst::Expr::Assignment(dst::Assignment {
+                            lhs: var.clone(),
+                            rhs,
+                        })))
+                    } else {
+                        Err("Invalid left-hand side of assignment (must be var ref)".to_string())
+                    }
+                }
+                &_ => todo!(),
+            },
         }
     }
 }

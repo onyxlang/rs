@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{fmt::Display, rc::Rc};
 
 pub struct VarDecl {
     pub id: String,
@@ -18,10 +18,42 @@ pub enum BuiltinType {
     Bool,
 }
 
+impl Display for BuiltinType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuiltinType::Void => write!(f, "Void"),
+            BuiltinType::Bool => write!(f, "Bool"),
+        }
+    }
+}
+
 pub enum Expr {
     BoolLiteral(bool),
-    VarRef(Rc<VarDecl>),
+    VarRef(VarRef),
     MacroCall(MacroCall),
+    Assignment(Assignment),
+}
+
+#[derive(Clone)]
+pub struct VarRef {
+    pub decl: Rc<VarDecl>,
+}
+
+impl InferType for VarRef {
+    fn infer_type(&self) -> BuiltinType {
+        self.decl.r#type
+    }
+}
+
+pub struct Assignment {
+    pub lhs: VarRef,
+    pub rhs: Rc<Expr>,
+}
+
+impl InferType for Assignment {
+    fn infer_type(&self) -> BuiltinType {
+        self.lhs.infer_type()
+    }
 }
 
 pub trait InferType {
@@ -32,8 +64,9 @@ impl InferType for Expr {
     fn infer_type(&self) -> BuiltinType {
         match self {
             Expr::BoolLiteral(_) => BuiltinType::Bool,
-            Expr::VarRef(var) => var.r#type,
+            Expr::VarRef(var) => var.infer_type(),
             Expr::MacroCall(m) => m.infer_type(),
+            Expr::Assignment(a) => a.infer_type(),
         }
     }
 }
