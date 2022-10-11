@@ -59,10 +59,10 @@ impl Cli {
     pub fn run() {
         let cli = Cli::parse();
 
-        match cli.action {
+        let result = match cli.action {
             Action::Run { input, zig } => {
                 let program = Program::new(Path::new(&input).into(), Path::new(&cli.cache).into());
-                Program::run(program, Path::new(&zig).into());
+                Program::run(program, Path::new(&zig).into())
             }
             Action::Compile { input, output, zig } => {
                 let program = Program::new(Path::new(&input).into(), Path::new(&cli.cache).into());
@@ -76,8 +76,13 @@ impl Cli {
                     }
                 };
 
-                Program::compile(program, output_path, Path::new(&zig).into());
+                Program::compile(program, output_path, Path::new(&zig).into())
             }
+        };
+
+        if let Err(panic) = result {
+            print!("{}", panic);
+            std::process::exit(1);
         }
     }
 }

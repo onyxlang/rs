@@ -3,16 +3,18 @@ use std::rc::Rc;
 use crate::ast;
 use crate::dst;
 use crate::dst::InferType;
+use crate::location::HasSpan;
+use crate::panic::Panic;
 use crate::scope::Scope;
+use crate::Location;
 
 pub trait Resolve<T> {
-    fn resolve(&self, scope: &dyn Scope) -> Result<T, String>;
+    fn resolve(&self, scope: &dyn Scope) -> Result<T, Panic>;
 }
 
 impl Resolve<dst::Module> for ast::Module {
-    // TODO: `scope` is the program.
-    fn resolve(&self, _scope: &dyn Scope) -> Result<dst::Module, String> {
-        let mut dst_module = dst::Module::default();
+    fn resolve(&self, scope: &dyn Scope) -> Result<dst::Module, Panic> {
+        let mut dst_module = dst::Module::new(scope.path());
 
         for body in &self.body {
             match body {
@@ -31,7 +33,10 @@ impl Resolve<dst::Module> for ast::Module {
                     let expr = expr.resolve(&dst_module)?;
 
                     if expr.infer_type() != dst::BuiltinType::Void {
-                        return Err("Unused expression result".to_string());
+                        return Err(Panic::new(
+                            "Unused expression result".to_string(),
+                            Location::new(scope.path(), expr.span()),
+                        ));
                     }
 
                     dst_module.main.push(dst::Statement::TerminatedExpr(expr));
@@ -47,16 +52,19 @@ impl Resolve<dst::Module> for ast::Module {
 }
 
 impl Resolve<Rc<dst::Expr>> for ast::Expr {
-    fn resolve(&self, scope: &dyn Scope) -> Result<Rc<dst::Expr>, String> {
+    fn resolve(&self, scope: &dyn Scope) -> Result<Rc<dst::Expr>, Panic> {
         match self {
-            ast::Expr::BoolLiteral(b) => Ok(Rc::new(dst::Expr::BoolLiteral(*b))),
+            ast::Expr::BoolLiteral(b) => Ok(Rc::new(dst::Expr::BoolLiteral(b.clone()))),
             ast::Expr::IdRef(id) => {
-                if let Some(var) = scope.find(id) {
+                if let Some(var) = scope.find(id.value.as_str()) {
                     Ok(Rc::new(dst::Expr::VarRef(dst::VarRef {
                         decl: Rc::clone(&var),
                     })))
                 } else {
-                    Err(format!("Unknown variable: {}", id))
+                    Err(Panic::new(
+                        format!("Unknown identifier: {}", id.value),
+                        Location::new(scope.path(), id.span()),
+                    ))
                 }
             }
             ast::Expr::MacroCall(m) => Ok(Rc::new(dst::Expr::MacroCall(m.resolve(scope)?))),
@@ -67,10 +75,13 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
 
                     if let dst::Expr::VarRef(var) = &*lhs {
                         if var.decl.r#type != rhs.infer_type() {
-                            return Err(format!(
-                                "Type mismatch: {} = {}",
-                                var.decl.r#type,
-                                rhs.infer_type()
+                            return Err(Panic::new(
+                                format!(
+                                    "Type mismatch: expected {}, got {}",
+                                    var.decl.r#type,
+                                    rhs.infer_type()
+                                ),
+                                Location::new(scope.path(), rhs.span()),
                             ));
                         }
 
@@ -79,7 +90,10 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                             rhs,
                         })))
                     } else {
-                        Err("Invalid left-hand side of assignment (must be var ref)".to_string())
+                        Err(Panic::new(
+                            "Left-hand side of assignment must be a variable".to_string(),
+                            Location::new(scope.path(), lhs.span()),
+                        ))
                     }
                 }
                 &_ => todo!(),
@@ -90,7 +104,7 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
 
 impl Resolve<Rc<dst::VarDecl>> for ast::VarDecl {
     /// Pushes the resolved variable declaration to the scope.
-    fn resolve(&self, scope: &dyn Scope) -> Result<Rc<dst::VarDecl>, String> {
+    fn resolve(&self, scope: &dyn Scope) -> Result<Rc<dst::VarDecl>, Panic> {
         let expr = self.expr.resolve(scope)?;
         let r#type = expr.infer_type();
         let var = Rc::new(dst::VarDecl {
@@ -103,14 +117,17 @@ impl Resolve<Rc<dst::VarDecl>> for ast::VarDecl {
 }
 
 impl Resolve<dst::MacroCall> for ast::MacroCall {
-    fn resolve(&self, scope: &dyn Scope) -> Result<dst::MacroCall, String> {
-        match self.id.as_str() {
+    fn resolve(&self, scope: &dyn Scope) -> Result<dst::MacroCall, Panic> {
+        match self.id.text.as_str() {
             "assert" => {
                 assert_eq!(self.args.len(), 1);
                 let arg = &self.args[0].resolve(scope)?;
-                Ok(dst::MacroCall::Assert(Rc::clone(arg)))
+                Ok(dst::MacroCall::Assert(self.clone(), Rc::clone(arg)))
             }
-            _ => panic!("Unknown macro @{}", self.id),
+            _ => Err(Panic::new(
+                format!("Unknown macro: {}", self.id.text),
+                Location::new(scope.path(), self.id.span()),
+            )),
         }
     }
 }

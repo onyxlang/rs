@@ -36,14 +36,14 @@ impl Codegen for dst::Statement {
 
 impl Codegen for dst::VarRef {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "@\"{}\"", self.decl.id)
+        write!(w, "@\"{}\"", self.decl.id.value)
     }
 }
 
 impl Codegen for dst::Expr {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
-            dst::Expr::BoolLiteral(b) => write!(w, "{}", b),
+            dst::Expr::BoolLiteral(b) => write!(w, "{}", b.value),
             dst::Expr::VarRef(var) => var.codegen(w),
             dst::Expr::MacroCall(m) => m.codegen(w),
             dst::Expr::Assignment(a) => {
@@ -57,7 +57,7 @@ impl Codegen for dst::Expr {
 
 impl Codegen for dst::VarDecl {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "var @\"{}\" = ", self.id)?;
+        write!(w, "var @\"{}\" = ", self.id.value)?;
         self.expr.codegen(w)?;
         Ok(())
     }
@@ -66,7 +66,7 @@ impl Codegen for dst::VarDecl {
 impl Codegen for dst::MacroCall {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
-            dst::MacroCall::Assert(expr) => {
+            dst::MacroCall::Assert(_, expr) => {
                 write!(w, "@import(\"std\").debug.assert(")?;
                 expr.codegen(w)?;
                 write!(w, ")")?;
@@ -83,7 +83,7 @@ mod test {
     use crate::scope::Dummy;
 
     fn assert_codegen(input: &str, expected: &str) {
-        let ast_module = crate::parser::onyx_parser::start(input).expect("Failed to parse");
+        let ast_module = crate::parser::parse("", input).expect("Failed to parse");
         let program = Dummy::default();
         let dst_module = ast_module.resolve(&program).expect("Failed to resolve");
         let mut buf = Vec::<u8>::new();

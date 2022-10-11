@@ -1,0 +1,3 @@
+let x = false
+x = true
+@assert(x)

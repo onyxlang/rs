@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{dst, scope::Scope, unit::Unit};
+use crate::{dst, scope::Scope, unit::Unit, Panic};
 
 pub struct Program {
     cache_path: PathBuf,
@@ -35,9 +35,9 @@ impl Program {
             .push(Unit::new(Rc::downgrade(&this), path));
     }
 
-    pub fn run(this: Rc<RefCell<Self>>, zig_path: PathBuf) {
+    pub fn run(this: Rc<RefCell<Self>>, zig_path: PathBuf) -> Result<(), Panic> {
         let borrow = this.borrow();
-        let entry_unit_path = borrow.codegen();
+        let entry_unit_path = borrow.codegen()?;
 
         let mut zig_cache_path = borrow.cache_path.clone();
         zig_cache_path.push("./zig");
@@ -60,11 +60,17 @@ impl Program {
             io::stderr().write_all(&output.stderr).unwrap();
             panic!("Failed to run {}", entry_unit_path.display());
         }
+
+        Ok(())
     }
 
-    pub fn compile(this: Rc<RefCell<Self>>, output_path: PathBuf, zig_path: PathBuf) {
+    pub fn compile(
+        this: Rc<RefCell<Self>>,
+        output_path: PathBuf,
+        zig_path: PathBuf,
+    ) -> Result<(), Panic> {
         let borrow = this.borrow();
-        let entry_unit_path = borrow.codegen();
+        let entry_unit_path = borrow.codegen()?;
 
         let mut zig_cache_path = borrow.cache_path.clone();
         zig_cache_path.push("./zig");
@@ -88,13 +94,15 @@ impl Program {
             io::stderr().write_all(&output.stderr).unwrap();
             panic!("Failed to run {}", entry_unit_path.display());
         }
+
+        Ok(())
     }
 
-    fn codegen(&self) -> PathBuf {
+    fn codegen(&self) -> Result<PathBuf, Panic> {
         let mut unit = self.entry.borrow_mut();
 
-        unit.parse();
-        unit.resolve();
+        unit.parse()?;
+        unit.resolve()?;
 
         let cache_path = self.cache_path.clone();
         create_dir_all(cache_path.as_path()).unwrap();
@@ -105,7 +113,7 @@ impl Program {
         let mut file = std::fs::File::create(&unit_path).unwrap();
         unit.codegen(&mut file).expect("Failed to write unit");
 
-        unit_path
+        Ok(unit_path)
     }
 
     fn unit_cache_path(&self, unit: &Unit) -> PathBuf {
@@ -117,6 +125,10 @@ impl Program {
 }
 
 impl Scope for Program {
+    fn path(&self) -> String {
+        self.entry.borrow().path()
+    }
+
     fn find(&self, _id: &str) -> Option<Rc<dst::VarDecl>> {
         None
     }
