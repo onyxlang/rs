@@ -19,6 +19,22 @@ impl<T> Node<T> {
 
 peg::parser! {
   grammar onyx_parser() for str {
+    pub rule start() -> ast::Mod
+        = ___? body:block_body() ___? { ast::Mod::new(body) }
+
+    // Utils ==================================================================
+    //
+
+    /// A wrapper yielding `Node` with a span.
+    rule node<T>(r: rule<T>) -> Node<T>
+        = start:position!()
+          it:r()
+          end:position!()
+        { Node::new(it, start, end) }
+
+    // Punctuation ============================================================
+    //
+
     /// Horizontal space.
     rule sp() = [' ' | '\t']+
     rule _ = sp()
@@ -26,51 +42,34 @@ peg::parser! {
     /// A single newline.
     rule nl() = _? ("\r\n" / "\n" / "\r") _?
 
-    /// "Non-adjacent", i.e. space or a single newline.
+    /// "Non-adjacent", i.e. horizontal space or a single newline.
     rule nadj() = nl() / _
     rule __ = nadj()
 
-    /// "Wide-space", i.e. any amount of space.
+    /// "Wide-space", i.e. any amount of space (including multiple lines).
     rule wsp() = nl()+ / _
     rule ___ = wsp()
 
     rule eof() = ![_]
-
     rule term() = nl() / (_? (";" / &eof() / &"}" / &"]" / &")"))
 
-    /// A comment spans until the end of the line.
-    rule comment() -> ast::Comment
-        =
-            start:position!() "#"
-            text:$([^ '\n' | '\r']*) (&nl() / &eof())
-            end:position!()
-        {
-            ast::Comment::new(
-                location::Span::incomplete(start, end),
-                text.to_string()
-            )
-        }
+    // Atoms ==================================================================
+    //
 
+    /// An Onyx idetifier.
     rule id() -> &'input str
         = $(
             ("_" / ['a'..='z' | 'A'..='Z'])
             ("_" / ['a'..='z' | 'A'..='Z' | '0'..='9'])*
         )
 
-    rule bool() -> bool
-        = "true"  { true }
-        / "false" { false }
+    /// A boolean literal.
+    rule bool() -> bool = "true"  { true } / "false" { false }
 
-    rule terminated_expr() -> ast::Statement
-        = it:expr() _? ";"
-        { ast::Statement::TerminatedExpr(it) }
+    // Expressions ============================================================
+    //
 
-    rule node<T>(r: rule<T>) -> Node<T>
-        = start:position!()
-          it:r()
-          end:position!()
-        { Node::new(it, start, end) }
-
+    /// An expression.
     rule expr() -> ast::Expr = precedence! {
         l:@ _? op:"=" _? r:(@) {
             ast::Expr::Binop(ast::Binop::new(l, "=".to_string(), r))
@@ -85,35 +84,7 @@ peg::parser! {
         }
     }
 
-    rule var_decl_value() -> ast::Expr
-        = _? "=" __? expr:expr() { expr }
-
-    rule var_decl() -> ast::VarDecl
-        =
-            start:position!()
-            "let" _ id:node(<id()>) expr:var_decl_value() term()
-            end:position!()
-        {
-            ast::VarDecl::new(
-                location::Span::incomplete(start, end),
-                ast::Id::new(id.span, id.value.to_string()),
-                expr
-            )
-        }
-
-    rule statement() -> ast::Statement
-        = it:var_decl() { ast::Statement::VarDecl(it) }
-        / terminated_expr()
-
-    rule block_body_el() -> ast::BlockBody
-        = it:comment()  { ast::BlockBody::Comment(it) }
-        / it:statement() { ast::BlockBody::Stmt(it) }
-        / it:expr()      { ast::BlockBody::Expr(it) }
-
-    rule block_body() -> Vec<ast::BlockBody>
-        = ___? body:block_body_el() ** (___?)
-        { body }
-
+    /// A macro call.
     rule macro_call() -> ast::MacroCall
         =
             start:position!()
@@ -127,8 +98,58 @@ peg::parser! {
             )
         }
 
-    pub rule start() -> ast::Mod
-        = ___? body:block_body() ___? { ast::Mod::new(body) }
+    // Statements =============================================================
+    //
+
+    /// A comment spans until the end of the line.
+    rule comment() -> ast::Comment
+        =
+            start:position!() "#"
+            text:$([^ '\n' | '\r']*) (&nl() / &eof())
+            end:position!()
+        {
+            ast::Comment::new(
+                location::Span::incomplete(start, end),
+                text.to_string()
+            )
+        }
+
+    /// An expression explicitly terminated w/ `;`.
+    rule terminated_expr() -> ast::Statement
+        = it:expr() _? ";"
+        { ast::Statement::TerminatedExpr(it) }
+
+    rule var_decl_value() -> ast::Expr
+        = _? "=" __? expr:expr() { expr }
+
+    /// A variable declaration.
+    rule var_decl() -> ast::VarDecl
+        =
+            start:position!()
+            "let" _ id:node(<id()>) expr:var_decl_value() term()
+            end:position!()
+        {
+            ast::VarDecl::new(
+                location::Span::incomplete(start, end),
+                ast::Id::new(id.span, id.value.to_string()),
+                expr
+            )
+        }
+
+    /// A statement.
+    rule statement() -> ast::Statement
+        = it:var_decl() { ast::Statement::VarDecl(it) }
+        / terminated_expr()
+
+    rule block_body_el() -> ast::BlockBody
+        = it:comment()  { ast::BlockBody::Comment(it) }
+        / it:statement() { ast::BlockBody::Stmt(it) }
+        / it:expr()      { ast::BlockBody::Expr(it) }
+
+    /// A block body, i.e. a sequence of statements and expressions.
+    rule block_body() -> Vec<ast::BlockBody>
+        = ___? body:block_body_el() ** (___?)
+        { body }
   }
 }
 
