@@ -1,12 +1,12 @@
 use crate::dst::{self, HasId};
 use std::io::{self, Write};
 
-pub trait Codegen {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()>;
+pub trait Lowerable {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()>;
 }
 
-impl Codegen for dst::Mod {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+impl Lowerable for dst::Mod {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
         for decl in self.declarations.iter() {
             match decl.1 {
                 dst::Exportable::StructDecl(decl) => {
@@ -50,7 +50,7 @@ impl Codegen for dst::Mod {
         // TODO: Call `main` from dependencies.
 
         for stmt in self.main.iter() {
-            stmt.codegen(w)?;
+            stmt.lower(w)?;
             writeln!(w)?;
         }
 
@@ -58,14 +58,14 @@ impl Codegen for dst::Mod {
     }
 }
 
-impl Codegen for dst::Statement {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+impl Lowerable for dst::Statement {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
             dst::Statement::VarDecl(var) => {
-                var.codegen(w)?;
+                var.lower(w)?;
             }
             dst::Statement::TerminatedExpr(expr) => {
-                expr.codegen(w)?;
+                expr.lower(w)?;
             }
         }
 
@@ -73,41 +73,41 @@ impl Codegen for dst::Statement {
     }
 }
 
-impl Codegen for dst::VarRef {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+impl Lowerable for dst::VarRef {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
         write!(w, "@\"{}\"", self.decl.id())
     }
 }
 
-impl Codegen for dst::Expr {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+impl Lowerable for dst::Expr {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
             dst::Expr::BoolLiteral(b) => write!(w, "{}", b.value),
-            dst::Expr::VarRef(var) => var.codegen(w),
-            dst::Expr::MacroCall(m) => m.codegen(w),
+            dst::Expr::VarRef(var) => var.lower(w),
+            dst::Expr::MacroCall(m) => m.lower(w),
             dst::Expr::Assignment(a) => {
-                a.lhs.codegen(w)?;
+                a.lhs.lower(w)?;
                 write!(w, " = ")?;
-                a.rhs.codegen(w)
+                a.rhs.lower(w)
             }
         }
     }
 }
 
-impl Codegen for dst::VarDecl {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+impl Lowerable for dst::VarDecl {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
         write!(w, "var @\"{}\" = ", self.id())?;
-        self.expr.codegen(w)?;
+        self.expr.lower(w)?;
         Ok(())
     }
 }
 
-impl Codegen for dst::MacroCall {
-    fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+impl Lowerable for dst::MacroCall {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
             dst::MacroCall::Assert(_, expr) => {
                 write!(w, "@import(\"std\").debug.assert(")?;
-                expr.codegen(w)?;
+                expr.lower(w)?;
                 write!(w, ")")?;
                 Ok(())
             }
@@ -121,17 +121,17 @@ mod test {
 
     use super::*;
 
-    fn assert_codegen(input: &str, expected: &str) {
+    fn assert_lowering(input: &str, expected: &str) {
         let ast_module = crate::parser::parse("".into(), input).expect("Failed to parse");
         let dst_module = ast_module.resolve(Weak::new()).expect("Failed to resolve");
         let mut buf = Vec::<u8>::new();
-        dst_module.codegen(&mut buf).expect("Failed to codegen");
+        dst_module.lower(&mut buf).expect("Failed to lower");
         assert_eq!(String::from_utf8(buf).unwrap(), expected);
     }
 
     #[test]
     pub fn test_assert() {
-        assert_codegen(
+        assert_lowering(
             r#"
 let a = true
 @assert(a)
@@ -145,7 +145,7 @@ var @"a" = true;
     }
     #[test]
     pub fn test_assignment() {
-        assert_codegen(
+        assert_lowering(
             r#"
 let a = false
 a = true;

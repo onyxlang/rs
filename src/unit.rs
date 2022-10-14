@@ -1,4 +1,4 @@
-use crate::{ast, codegen::Codegen, dst, parser, program::Program, Panic};
+use crate::{ast, dst, lower::Lowerable, parser, program::Program, Panic};
 use std::{
     cell::RefCell,
     path::PathBuf,
@@ -90,7 +90,7 @@ impl Unit {
             .dst
             .as_ref()
             .expect("Unit must be resolved")
-            .codegen(&mut file);
+            .lower(&mut file);
         if result.is_err() {
             panic!(
                 "Failed to lower \"{}\" to \"{}\": {}",
