@@ -1,29 +1,17 @@
+use crate::{ast, codegen::Codegen, dst, parser, program::Program, Panic};
 use std::{
     cell::RefCell,
-    io,
     path::PathBuf,
     rc::{Rc, Weak},
-};
-
-use crate::{
-    ast, codegen::Codegen, dst, parser, program::Program, resolve::Resolve, scope::Scope, Panic,
 };
 
 pub struct Unit {
     pub program: Weak<RefCell<Program>>,
     pub path: PathBuf,
     ast: Option<ast::Mod>,
-    dst: Option<dst::Mod>,
-}
-
-impl Scope for Unit {
-    fn path(&self) -> String {
-        self.path.to_str().unwrap().to_string()
-    }
-
-    fn find(&self, id: &str) -> Option<Rc<dst::VarDecl>> {
-        self.dst.as_ref().and_then(|dst| dst.find(id))
-    }
+    pub dst: Option<dst::Mod>,
+    pub lowered_path: Option<PathBuf>,
+    pub dependencies: Vec<Weak<RefCell<Unit>>>,
 }
 
 impl Unit {
@@ -33,6 +21,8 @@ impl Unit {
             path,
             ast: None,
             dst: None,
+            lowered_path: None,
+            dependencies: Vec::new(),
         }))
     }
 
@@ -41,30 +31,77 @@ impl Unit {
             return Ok(()); // Already parsed
         }
 
-        let source = std::fs::read_to_string(&self.path)
-            .unwrap_or_else(|_| panic!("Failed to read {}", self.path.display()));
+        let source = std::fs::read_to_string(&self.path);
+        if source.is_err() {
+            return Err(Panic::new(
+                format!(
+                    "Failed to read file at \"{}\": {}",
+                    self.path.display(),
+                    source.err().unwrap()
+                ),
+                None,
+            ));
+        }
 
-        let result = parser::parse(&self.path.to_string_lossy(), source.as_str())?;
+        let result = parser::parse(self.path.clone(), source.unwrap().as_str())?;
 
         self.ast = Some(result);
         Ok(())
     }
 
-    pub fn resolve(&mut self) -> Result<(), Panic> {
-        if self.dst.is_some() {
+    pub fn resolve(this: Rc<RefCell<Self>>) -> Result<(), Panic> {
+        if this.borrow().dst.is_some() {
             return Ok(()); // Already resolved
         }
 
-        self.parse()?;
+        this.borrow_mut().parse()?;
 
-        let result = self.ast.as_ref().unwrap().resolve(self)?;
+        let ast = this.borrow_mut().ast.take().unwrap();
+        let result = ast.resolve(Rc::downgrade(&this))?;
 
-        self.dst = Some(result);
+        this.borrow_mut().dst = Some(result);
+
         Ok(())
     }
 
-    pub fn codegen(&self, w: &mut dyn std::io::Write) -> io::Result<()> {
-        self.dst.as_ref().expect("Unit not resolved").codegen(w)
+    pub fn lower(&mut self, cache_path: PathBuf) -> PathBuf {
+        if self.lowered_path.is_some() {
+            return self.lowered_path.as_ref().unwrap().to_path_buf(); // Already lowered
+        }
+
+        // Lower all dependencies first.
+        for dependency in &self.dependencies {
+            dependency
+                .upgrade()
+                .unwrap()
+                .borrow_mut()
+                .lower(cache_path.clone());
+        }
+
+        let lowering_path = cache_path.join(self.hash()).with_extension("zig");
+        println!(
+            "Lowering \"{}\" to \"{}\"...",
+            self.path.display(),
+            lowering_path.display()
+        );
+
+        let mut file = std::fs::File::create(&lowering_path).unwrap();
+        let result = self
+            .dst
+            .as_ref()
+            .expect("Unit must be resolved")
+            .codegen(&mut file);
+        if result.is_err() {
+            panic!(
+                "Failed to lower \"{}\" to \"{}\": {}",
+                self.path.display(),
+                lowering_path.display(),
+                result.err().unwrap()
+            );
+        }
+
+        self.lowered_path = Some(lowering_path.clone());
+        lowering_path
     }
 
     pub fn hash(&self) -> String {

@@ -7,7 +7,6 @@ pub mod panic;
 pub mod parser;
 pub mod program;
 pub mod resolve;
-pub mod scope;
 pub mod unit;
 
 pub use location::Location;

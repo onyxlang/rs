@@ -61,11 +61,11 @@ impl Cli {
 
         let result = match cli.action {
             Action::Run { input, zig } => {
-                let program = Program::new(Path::new(&input).into(), Path::new(&cli.cache).into());
-                Program::run(program, Path::new(&zig).into())
+                let program = Program::new(Path::new(&cli.cache).into());
+                Program::run(program, Path::new(&input).into(), Path::new(&zig).into())
             }
             Action::Compile { input, output, zig } => {
-                let program = Program::new(Path::new(&input).into(), Path::new(&cli.cache).into());
+                let program = Program::new(Path::new(&cli.cache).into());
 
                 let output_path = match output {
                     Some(output) => Path::new(&output).into(),
@@ -76,7 +76,12 @@ impl Cli {
                     }
                 };
 
-                Program::compile(program, output_path, Path::new(&zig).into())
+                Program::compile(
+                    program,
+                    Path::new(&input).into(),
+                    output_path,
+                    Path::new(&zig).into(),
+                )
             }
         };
 

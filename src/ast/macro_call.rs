@@ -1,16 +1,16 @@
-use super::{Expr, Node};
+use super::{Expr, Id};
 use crate::location::{HasSpan, Span};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub struct MacroCall {
     span: Span,
-    pub id: Node,
+    pub id: Id,
     pub args: Vec<Expr>,
 }
 
 impl MacroCall {
-    pub fn new(span: Span, id: Node, args: Vec<Expr>) -> Self {
+    pub fn new(span: Span, id: Id, args: Vec<Expr>) -> Self {
         Self { span, id, args }
     }
 }

@@ -1,5 +1,5 @@
 use crate::location::{HasSpan, Span};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 /// A boolean literal node.
 #[derive(Clone)]
@@ -21,6 +21,12 @@ impl PartialEq for Bool {
 }
 
 impl Debug for Bool {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Bool<{}>", self.value)
+    }
+}
+
+impl Display for Bool {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value)
     }

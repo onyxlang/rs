@@ -1,15 +1,25 @@
 use super::{BuiltinType, InferType, VarDecl};
-use crate::location::{HasSpan, Span};
+use crate::{
+    ast,
+    location::{HasSpan, Span},
+};
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarRef {
+    ast_node: ast::Id,
     pub decl: Rc<VarDecl>,
+}
+
+impl VarRef {
+    pub fn new(ast_node: ast::Id, decl: Rc<VarDecl>) -> Self {
+        Self { ast_node, decl }
+    }
 }
 
 impl HasSpan for VarRef {
     fn span(&self) -> Span {
-        self.decl.id.span()
+        self.ast_node.span()
     }
 }
 

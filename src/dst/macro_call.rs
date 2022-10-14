@@ -6,6 +6,7 @@ use crate::{
 use std::rc::Rc;
 
 /// For now, a macro call is lowered to a specific Zig code.
+#[derive(Debug)]
 pub enum MacroCall {
     Assert(ast::MacroCall, Rc<Expr>),
 }

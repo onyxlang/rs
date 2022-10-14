@@ -1,4 +1,4 @@
-use super::{Expr, VarDecl};
+use super::{r#struct, Decorator, Expr, Import, VarDecl};
 use crate::location::{HasSpan, Span};
 use std::fmt::Debug;
 
@@ -6,6 +6,12 @@ use std::fmt::Debug;
 pub enum Statement {
     VarDecl(VarDecl),
     TerminatedExpr(Expr),
+    Import(Import),
+
+    // IDEA: An expression may also be decorated?
+    Decorator(Decorator),
+
+    StructDef(r#struct::Def),
 }
 
 impl HasSpan for Statement {
@@ -13,6 +19,9 @@ impl HasSpan for Statement {
         match self {
             Statement::VarDecl(v) => v.span(),
             Statement::TerminatedExpr(e) => e.span(),
+            Statement::Import(i) => i.span(),
+            Statement::Decorator(d) => d.span(),
+            Statement::StructDef(d) => d.span(),
         }
     }
 }

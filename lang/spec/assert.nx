@@ -1,4 +1,8 @@
+import Bool from "../builtin/bool.nx"
+
 # This is a comment.
+# let x: Bool = false
 let x = false
 x = true;
+# @assert(x.eq?(true))
 @assert(x)

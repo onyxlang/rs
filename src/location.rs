@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    path::PathBuf,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cursor {
@@ -34,8 +37,8 @@ impl Cursor {
     /// with the parser, which only yields offsets.
     pub fn complete(self, src: &str) -> Self {
         let before = &src[..self.offset];
-        let line = before.as_bytes().iter().filter(|&&c| c == b'\n').count() + 1;
-        let column = before.chars().rev().take_while(|&c| c != '\n').count() + 1;
+        let line = before.as_bytes().iter().filter(|&&c| c == b'\n').count();
+        let column = before.chars().rev().take_while(|&c| c != '\n').count();
         Self::new(self.offset, line, column)
     }
 }
@@ -93,18 +96,16 @@ pub trait HasSpan {
 
 #[derive(Debug, Clone)]
 pub struct Location {
-    pub path: String,
+    pub path: PathBuf,
     pub span: Span,
 }
 
 impl Location {
-    pub fn new(path: String, mut span: Span) -> Self {
-        if span.start.is_incomplete() {
-            span.start = span.start.complete(path.as_str());
-        }
-
-        if span.end.is_incomplete() {
-            span.end = span.end.complete(path.as_str());
+    pub fn new(path: PathBuf, mut span: Span) -> Self {
+        if span.start.is_incomplete() || span.end.is_incomplete() {
+            let src = std::fs::read_to_string(&path).unwrap();
+            span.start = span.start.complete(&src);
+            span.end = span.end.complete(&src);
         }
 
         Self { path, span }
@@ -113,6 +114,7 @@ impl Location {
 
 impl Display for Location {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.path, self.span)
+        // BUG: Breaks if path contains invalid Unicode.
+        write!(f, "{}:{}", self.path.as_path().to_str().unwrap(), self.span)
     }
 }

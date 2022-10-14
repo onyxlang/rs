@@ -1,6 +1,5 @@
+use crate::dst::{self, HasId};
 use std::io::{self, Write};
-
-use crate::dst;
 
 pub trait Codegen {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()>;
@@ -8,7 +7,47 @@ pub trait Codegen {
 
 impl Codegen for dst::Mod {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
+        for decl in self.declarations.iter() {
+            match decl.1 {
+                dst::Exportable::StructDecl(decl) => {
+                    if let Some(builtin) = decl.as_ref().borrow().builtin {
+                        match builtin {
+                            dst::r#struct::Builtin::Bool => {
+                                // Do not write anything, use `bool`.
+                            }
+                        }
+                    } else {
+                        unimplemented!("Lowering non-builtin structs")
+                    }
+                }
+                dst::Exportable::VarDecl(_) => {
+                    // Currently variables are only declared for main.
+                }
+            }
+        }
+
+        for import in self.imports.iter() {
+            match &import.1.import {
+                dst::Exportable::StructDecl(decl) => {
+                    if let Some(builtin) = decl.as_ref().borrow().builtin {
+                        match builtin {
+                            dst::r#struct::Builtin::Bool => {
+                                // Do not import anything, use `bool`.
+                            }
+                        }
+                    } else {
+                        unimplemented!("Lowering non-builtin structs")
+                    }
+                }
+                dst::Exportable::VarDecl(_) => {
+                    unimplemented!()
+                }
+            }
+        }
+
         writeln!(w, "pub fn main() void {{")?;
+
+        // TODO: Call `main` from dependencies.
 
         for stmt in self.main.iter() {
             stmt.codegen(w)?;
@@ -36,7 +75,7 @@ impl Codegen for dst::Statement {
 
 impl Codegen for dst::VarRef {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "@\"{}\"", self.decl.id.value)
+        write!(w, "@\"{}\"", self.decl.id())
     }
 }
 
@@ -57,7 +96,7 @@ impl Codegen for dst::Expr {
 
 impl Codegen for dst::VarDecl {
     fn codegen(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "var @\"{}\" = ", self.id.value)?;
+        write!(w, "var @\"{}\" = ", self.id())?;
         self.expr.codegen(w)?;
         Ok(())
     }
@@ -78,14 +117,13 @@ impl Codegen for dst::MacroCall {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Weak;
+
     use super::*;
-    use crate::resolve::Resolve;
-    use crate::scope::Dummy;
 
     fn assert_codegen(input: &str, expected: &str) {
-        let ast_module = crate::parser::parse("", input).expect("Failed to parse");
-        let program = Dummy::default();
-        let dst_module = ast_module.resolve(&program).expect("Failed to resolve");
+        let ast_module = crate::parser::parse("".into(), input).expect("Failed to parse");
+        let dst_module = ast_module.resolve(Weak::new()).expect("Failed to resolve");
         let mut buf = Vec::<u8>::new();
         dst_module.codegen(&mut buf).expect("Failed to codegen");
         assert_eq!(String::from_utf8(buf).unwrap(), expected);

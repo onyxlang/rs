@@ -2,6 +2,7 @@ use super::{Expr, Id};
 use crate::location::{HasSpan, Span};
 use std::fmt::{Debug, Formatter};
 
+#[derive(Clone)]
 pub struct VarDecl {
     span: Span,
     pub id: Id,

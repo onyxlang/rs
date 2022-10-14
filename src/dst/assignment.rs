@@ -2,6 +2,7 @@ use super::{BuiltinType, Expr, InferType, VarRef};
 use crate::location::{HasSpan, Span};
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct Assignment {
     pub lhs: VarRef,
     pub rhs: Rc<Expr>,

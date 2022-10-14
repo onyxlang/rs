@@ -1,3 +1,4 @@
+use crate::{unit::Unit, Panic};
 use std::{
     cell::RefCell,
     fs::create_dir_all,
@@ -7,45 +8,58 @@ use std::{
     rc::Rc,
 };
 
-use crate::{dst, scope::Scope, unit::Unit, Panic};
-
 pub struct Program {
     cache_path: PathBuf,
-    entry: Rc<RefCell<Unit>>,
+    cache_dir_ensured: bool,
     units: Vec<Rc<RefCell<Unit>>>,
 }
 
 impl Program {
-    pub fn new(entry_path: PathBuf, cache_path: PathBuf) -> Rc<RefCell<Self>> {
-        Rc::new_cyclic(|program| {
-            let entry = Unit::new(program.clone(), entry_path);
-            let units = vec![entry.clone()];
-
-            RefCell::new(Self {
-                cache_path,
-                entry,
-                units,
-            })
-        })
+    pub fn new(cache_path: PathBuf) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
+            cache_path,
+            cache_dir_ensured: false,
+            units: Vec::new(),
+        }))
     }
 
-    pub fn add_unit(this: Rc<RefCell<Self>>, path: PathBuf) {
-        this.borrow_mut()
-            .units
-            .push(Unit::new(Rc::downgrade(&this), path));
+    /// Resolve a unit at `path`.
+    /// Adds the unit to the program if it doesn't exist.
+    /// The very first resolved unit becomes the program entry unit.
+    pub fn resolve(this: Rc<RefCell<Self>>, path: PathBuf) -> Result<Rc<RefCell<Unit>>, Panic> {
+        for unit in &this.as_ref().borrow().units {
+            if unit.as_ref().borrow().path == path {
+                return Ok(Rc::clone(unit));
+            }
+        }
+
+        // Ensure the cache directory exists only once.
+        if !this.as_ref().borrow().cache_dir_ensured {
+            create_dir_all(&this.as_ref().borrow().cache_path).unwrap();
+            this.as_ref().borrow_mut().cache_dir_ensured = true;
+        }
+
+        let unit = Unit::new(Rc::downgrade(&this), path);
+        Unit::resolve(unit.clone())?;
+        this.borrow_mut().units.push(unit.clone());
+
+        Ok(unit)
     }
 
-    pub fn run(this: Rc<RefCell<Self>>, zig_path: PathBuf) -> Result<(), Panic> {
-        let borrow = this.borrow();
-        let entry_unit_path = borrow.codegen()?;
+    pub fn run(
+        this: Rc<RefCell<Self>>,
+        input_path: PathBuf,
+        zig_path: PathBuf,
+    ) -> Result<(), Panic> {
+        let entry_unit_lowered_path = Self::lower(Rc::clone(&this), input_path)?;
 
-        let mut zig_cache_path = borrow.cache_path.clone();
+        let mut zig_cache_path = this.as_ref().borrow().cache_path.clone();
         zig_cache_path.push("./zig");
 
         let mut cmd = Command::new(zig_path.as_path());
         cmd.args([
             "run",
-            entry_unit_path.as_path().to_str().unwrap(),
+            entry_unit_lowered_path.as_path().to_str().unwrap(),
             "-lc",
             "--cache-dir",
             zig_cache_path.as_path().to_str().unwrap(),
@@ -58,7 +72,7 @@ impl Program {
             println!("Zig exited with status {}", output.status);
             io::stdout().write_all(&output.stdout).unwrap();
             io::stderr().write_all(&output.stderr).unwrap();
-            panic!("Failed to run {}", entry_unit_path.display());
+            panic!("Failed to run {}", entry_unit_lowered_path.display());
         }
 
         Ok(())
@@ -66,19 +80,19 @@ impl Program {
 
     pub fn compile(
         this: Rc<RefCell<Self>>,
+        input_path: PathBuf,
         output_path: PathBuf,
         zig_path: PathBuf,
     ) -> Result<(), Panic> {
-        let borrow = this.borrow();
-        let entry_unit_path = borrow.codegen()?;
+        let entry_unit_lowered_path = Self::lower(Rc::clone(&this), input_path)?;
 
-        let mut zig_cache_path = borrow.cache_path.clone();
+        let mut zig_cache_path = this.as_ref().borrow().cache_path.clone();
         zig_cache_path.push("./zig");
 
         let mut cmd = Command::new(zig_path.as_path());
         cmd.args([
             "build-exe",
-            entry_unit_path.as_path().to_str().unwrap(),
+            entry_unit_lowered_path.as_path().to_str().unwrap(),
             "-lc",
             "--cache-dir",
             zig_cache_path.as_path().to_str().unwrap(),
@@ -92,44 +106,22 @@ impl Program {
             println!("Zig exited with status {}", output.status);
             io::stdout().write_all(&output.stdout).unwrap();
             io::stderr().write_all(&output.stderr).unwrap();
-            panic!("Failed to run {}", entry_unit_path.display());
+            panic!("Failed to compile {}", entry_unit_lowered_path.display());
         }
 
         Ok(())
     }
 
-    fn codegen(&self) -> Result<PathBuf, Panic> {
-        let mut unit = self.entry.borrow_mut();
+    /// Lower the whole program, starting with the entry unit.
+    /// Returns the entry point lowered path.
+    fn lower(this: Rc<RefCell<Self>>, entry_path: PathBuf) -> Result<PathBuf, Panic> {
+        let entry = Self::resolve(Rc::clone(&this), entry_path)?;
 
-        unit.parse()?;
-        unit.resolve()?;
+        let path = entry
+            .as_ref()
+            .borrow_mut()
+            .lower(this.as_ref().borrow().cache_path.clone());
 
-        let cache_path = self.cache_path.clone();
-        create_dir_all(cache_path.as_path()).unwrap();
-
-        let unit_path = self.unit_cache_path(&unit);
-        println!("Writing {}...", unit_path.display());
-
-        let mut file = std::fs::File::create(&unit_path).unwrap();
-        unit.codegen(&mut file).expect("Failed to write unit");
-
-        Ok(unit_path)
-    }
-
-    fn unit_cache_path(&self, unit: &Unit) -> PathBuf {
-        let mut path = self.cache_path.clone();
-        path.push("./");
-        path.push(unit.hash());
-        path.with_extension("zig")
-    }
-}
-
-impl Scope for Program {
-    fn path(&self) -> String {
-        self.entry.borrow().path()
-    }
-
-    fn find(&self, _id: &str) -> Option<Rc<dst::VarDecl>> {
-        None
+        Ok(path)
     }
 }

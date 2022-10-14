@@ -1,39 +1,38 @@
 use crate::location::{HasSpan, Span};
 use std::fmt::{Debug, Display, Formatter};
 
-/// An Onyx identifier node.
-// TODO: Wrapped ids.
+/// A string literal node.
 #[derive(Clone)]
-pub struct Id {
+pub struct String {
     span: Span,
-    pub value: String,
+    pub value: std::string::String,
 }
 
-impl Id {
-    pub fn new(span: Span, value: String) -> Self {
+impl String {
+    pub fn new(span: Span, value: std::string::String) -> Self {
         Self { span, value }
     }
 }
 
-impl PartialEq for Id {
+impl PartialEq for String {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
     }
 }
 
-impl Debug for Id {
+impl Debug for String {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Id`{}`", self.value)
+        write!(f, "String\"{}\"", self.value)
     }
 }
 
-impl Display for Id {
+impl Display for String {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "\"{}\"", self.value)
     }
 }
 
-impl HasSpan for Id {
+impl HasSpan for String {
     fn span(&self) -> Span {
         self.span
     }
