@@ -36,6 +36,9 @@ pub mod r#struct;
 mod call;
 pub use call::Call;
 
+mod export;
+pub use export::Export;
+
 use std::fmt::Debug;
 
 /// An ASt module corresponds to a single source file.

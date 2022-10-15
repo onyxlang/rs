@@ -1,6 +1,3 @@
-import Bool from "../builtin/bool.nx"
-# import { eq? } from "./eq.nx"
-# Note the aliased id.
 import eq from "./eq.nx"
 
 # This is a comment.

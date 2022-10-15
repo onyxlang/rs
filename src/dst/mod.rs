@@ -33,6 +33,9 @@ pub mod r#struct;
 pub mod import;
 pub use import::Import;
 
+mod export;
+pub use export::Export;
+
 pub mod function;
 
 mod exportable;
@@ -61,7 +64,7 @@ pub struct Mod {
     pub main: Vec<Statement>,
 
     pub exports: std::collections::HashMap<String, Exportable>,
-    pub default: Option<Exportable>,
+    pub default_export: Option<Exportable>,
     pub imports: std::collections::HashMap<String, Import>,
 
     pub decorators_stack: Vec<decorator::Application>,
@@ -74,7 +77,7 @@ impl Mod {
             unit,
             main: Vec::new(),
             exports: std::collections::HashMap::new(),
-            default: None,
+            default_export: None,
             imports: std::collections::HashMap::new(),
             decorators_stack: Vec::new(),
             declarations: std::collections::HashMap::new(),

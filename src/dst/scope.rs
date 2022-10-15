@@ -17,7 +17,7 @@ pub trait Scope {
     fn search(&self, id: &str) -> Option<Exportable>;
 
     /// NOTE: Shall call `add_import` after resolving.
-    fn resolve_import(&mut self, node: ast::Import) -> Result<dst::Import, Panic>;
+    fn resolve_default_import(&mut self, from: ast::literal::String) -> Result<Exportable, Panic>;
 
     /// Should call `ensure_not_stored` within.
     fn add_import(&mut self, id: &ast::Id, import: dst::Import) -> Result<(), Panic>;
@@ -54,22 +54,61 @@ impl Scope for dst::Mod {
     }
 
     fn search_builtin(&self, id: &str) -> Option<Exportable> {
-        todo!()
+        println!("Searching builtin for `{}`", id);
+
+        let self_unit = self.unit.upgrade().unwrap();
+
+        let dependency = Program::resolve(
+            self_unit.as_ref().borrow().program.upgrade().unwrap(),
+            "builtin".into(),
+        );
+
+        if dependency.is_err() {
+            panic!("Failed to resolve builtin");
+        }
+
+        dependency
+            .unwrap()
+            .as_ref()
+            .borrow()
+            .dst
+            .as_ref()
+            .unwrap()
+            .search(id)
     }
 
     fn search(&self, id: &str) -> Option<Exportable> {
+        println!("Searching \"{}\" for `{}`", self.path().display(), id);
+
         for i in self.imports.iter() {
             if i.0 == id {
+                println!("Found import for `{}`", id);
                 return Some(i.1.import.clone());
+            }
+        }
+
+        for e in self.exports.iter() {
+            if e.0 == id {
+                println!("Found export for `{}`", id);
+                return Some(e.1.clone());
             }
         }
 
         for i in self.declarations.iter() {
             if i.0 == id {
+                println!("Found declaration for `{}`", id);
                 return Some(i.1.clone());
             }
         }
 
+        if self.path() != PathBuf::from("builtin") && !self.path().starts_with("builtin/") {
+            if let Some(found) = self.search_builtin(id) {
+                println!("Found builtin for `{}`", id);
+                return Some(found);
+            }
+        }
+
+        println!("Not found `{}`", id);
         None
     }
 
@@ -79,15 +118,16 @@ impl Scope for dst::Mod {
         Ok(())
     }
 
-    fn resolve_import(&mut self, node: ast::Import) -> Result<dst::Import, Panic> {
+    // TODO: Check if the id is already declared.
+    fn resolve_default_import(&mut self, from: ast::literal::String) -> Result<Exportable, Panic> {
         let mut path = self.path();
         path.pop();
-        path.push(node.from.value.clone());
+        path.push(from.value.clone());
 
         if path == self.path() {
             return Err(Panic::new(
                 "Cannot import from self".to_string(),
-                Some(Location::new(self.path(), node.from.span())),
+                Some(Location::new(self.path(), from.span())),
             ));
         }
 
@@ -104,7 +144,7 @@ impl Scope for dst::Mod {
             .dst
             .as_ref()
             .unwrap()
-            .default
+            .default_export
             .clone();
 
         if default.is_none() {
@@ -113,11 +153,9 @@ impl Scope for dst::Mod {
                     "Module at \"{}\" doesn't have a default export",
                     path.display()
                 ),
-                Some(Location::new(self.path(), node.from.span())),
+                Some(Location::new(self.path(), from.span())),
             ));
         }
-
-        let dst = dst::Import::new(node, default.unwrap());
 
         self_unit
             .as_ref()
@@ -125,7 +163,7 @@ impl Scope for dst::Mod {
             .dependencies
             .push(Rc::downgrade(&dependency));
 
-        Ok(dst)
+        Ok(default.unwrap())
     }
 
     fn push_decorator(&mut self, decorator: dst::decorator::Application) {

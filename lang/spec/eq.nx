@@ -1,4 +1,2 @@
-import Bool from "../builtin/bool.nx"
-
 @[Builtin]
 export default decl ƒ eq?(self: Bool, another: Bool) -> Bool

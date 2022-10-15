@@ -1,1 +1,1 @@
-# export Bool from "./builtin/bool.nx"
+export Bool from "builtin/bool"

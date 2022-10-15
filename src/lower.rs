@@ -157,13 +157,14 @@ impl Lowerable for dst::MacroCall {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::unit::Unit;
-    use std::rc::{Rc, Weak};
+    use crate::{program::Program, unit::Unit};
+    use std::rc::Rc;
 
     // FIXME: Properly display panics (with source).
     fn assert_lowering(input: &str, expected: &str) {
         let ast_module = crate::parser::parse("".into(), input).expect("Failed to parse");
-        let unit = Unit::new(Weak::new(), "<test>".into());
+        let program = Program::new(".cache".into());
+        let unit = Unit::new(Rc::downgrade(&program), "<test>".into());
         let dst_module = ast_module
             .resolve(Rc::downgrade(&unit))
             .expect("Failed to resolve");
@@ -176,7 +177,6 @@ mod test {
     pub fn test_assert() {
         assert_lowering(
             r#"
-@[Builtin] struct Bool {}
 let a = true
 @assert(a)
             "#,
@@ -191,7 +191,6 @@ var @"a" = true;
     pub fn test_assignment() {
         assert_lowering(
             r#"
-@[Builtin] struct Bool {}
 let a = false
 a = true;
 @assert(a)
@@ -209,7 +208,6 @@ var @"a" = false;
     pub fn test_bool_eq() {
         assert_lowering(
             r#"
-@[Builtin] struct Bool { }
 @[Builtin] decl function eq?(self: Bool, another: Bool) -> Bool
 let a = false
 let b = true

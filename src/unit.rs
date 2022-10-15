@@ -31,19 +31,34 @@ impl Unit {
             return Ok(()); // Already parsed
         }
 
-        let source = std::fs::read_to_string(&self.path);
-        if source.is_err() {
-            return Err(Panic::new(
-                format!(
-                    "Failed to read file at \"{}\": {}",
-                    self.path.display(),
-                    source.err().unwrap()
-                ),
-                None,
-            ));
-        }
+        let result = match self.path.to_str() {
+            Some("builtin") => parser::parse(
+                "../lang/builtin.nx".into(),
+                include_str!("../lang/builtin.nx"),
+            )?,
 
-        let result = parser::parse(self.path.clone(), source.unwrap().as_str())?;
+            Some("builtin/bool") => parser::parse(
+                "../lang/builtin/bool.nx".into(),
+                include_str!("../lang/builtin/bool.nx"),
+            )?,
+
+            _ => {
+                let source = std::fs::read_to_string(&self.path);
+
+                if source.is_err() {
+                    return Err(Panic::new(
+                        format!(
+                            "Failed to read file at \"{}\": {}",
+                            self.path.display(),
+                            source.err().unwrap()
+                        ),
+                        None,
+                    ));
+                }
+
+                parser::parse(self.path.clone(), &source.unwrap())?
+            }
+        };
 
         self.ast = Some(result);
         Ok(())

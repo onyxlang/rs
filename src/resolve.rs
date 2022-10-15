@@ -32,8 +32,13 @@ impl ast::Mod {
                         dst_module.main.push(dst::Statement::TerminatedExpr(expr));
                     }
                     ast::Statement::Import(i) => {
-                        let import = i.resolve(&mut dst_module)?;
+                        let default = dst_module.resolve_default_import(i.from.clone())?;
+                        let import = dst::Import::new(i.clone(), default);
                         dst_module.add_import(&i.id, import)?;
+                    }
+                    ast::Statement::Export(e) => {
+                        let default = dst_module.resolve_default_import(e.from.clone())?;
+                        dst_module.add_export(&e.id, default)?;
                     }
                     ast::Statement::Decorator(d) => {
                         let decorator = d.resolve(&mut dst_module)?;
@@ -45,7 +50,7 @@ impl ast::Mod {
 
                         if def.export {
                             if def.default {
-                                dst_module.default =
+                                dst_module.default_export =
                                     Some(dst::Exportable::StructDecl(Rc::clone(&decl)));
                             } else {
                                 dst_module
@@ -59,7 +64,7 @@ impl ast::Mod {
 
                         if decl.export {
                             if decl.default {
-                                dst_module.default =
+                                dst_module.default_export =
                                     Some(dst::Exportable::FunctionDecl(Rc::clone(&dst)));
                             } else {
                                 dst_module
@@ -87,22 +92,6 @@ impl ast::Mod {
         }
 
         Ok(dst_module)
-    }
-}
-
-impl Resolve<dst::Import> for ast::Import {
-    fn resolve(&self, scope: &mut dyn dst::Scope) -> Result<dst::Import, Panic> {
-        if scope.search(&self.id.value).is_some() {
-            let panic = Panic::new(
-                format!("Already declared id `{}`", &self.id.value),
-                Some(Location::new(scope.path(), self.id.span())),
-            );
-
-            // TODO: Point to the previous declaration, which may be an import.
-            return Err(panic);
-        }
-
-        scope.resolve_import(self.clone())
     }
 }
 

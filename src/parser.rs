@@ -111,6 +111,14 @@ peg::parser! {
             end:position!()
         { ast::Import::new(span!(begin, end), id, from) }
 
+    rule export() -> ast::Export
+        =
+            begin:position!()
+            "export" _ id:id() _
+            "from" _ from:string()
+            end:position!()
+        { ast::Export::new(span!(begin, end), id, from) }
+
     /// A decorator, e.g. `@[Foo]`.
     rule decorator() -> ast::Decorator
         = begin:position!() "@[" id:id() "]" end:position!()
@@ -181,6 +189,7 @@ peg::parser! {
     rule statement() -> ast::Statement
         = it:var_decl()      { ast::Statement::VarDecl(it) }
         / it:import()        { ast::Statement::Import(it) }
+        / it:export()        { ast::Statement::Export(it) }
         / it:decorator()     { ast::Statement::Decorator(it) }
         / it:struct_def()    { ast::Statement::StructDef(it) }
         / it:function_decl() { ast::Statement::FunctionDecl(it) }
