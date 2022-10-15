@@ -1,19 +1,23 @@
-use super::{BuiltinType, Expr, HasASTId, HasId, InferType};
+use super::{r#struct, Expr, HasASTId, HasId, InferType, Scope};
 use crate::{
     ast,
     location::{HasSpan, Span},
 };
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
 pub struct VarDecl {
     ast_node: ast::VarDecl,
-    pub r#type: BuiltinType,
+    pub r#type: Rc<RefCell<r#struct::Decl>>,
     pub expr: Rc<Expr>,
 }
 
 impl VarDecl {
-    pub fn new(ast_node: ast::VarDecl, r#type: BuiltinType, expr: Rc<Expr>) -> Self {
+    pub fn new(
+        ast_node: ast::VarDecl,
+        r#type: Rc<RefCell<r#struct::Decl>>,
+        expr: Rc<Expr>,
+    ) -> Self {
         Self {
             ast_node,
             r#type,
@@ -41,7 +45,7 @@ impl HasSpan for VarDecl {
 }
 
 impl InferType for VarDecl {
-    fn infer_type(&self) -> BuiltinType {
-        BuiltinType::Void
+    fn infer_type(&self, _scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>> {
+        None
     }
 }

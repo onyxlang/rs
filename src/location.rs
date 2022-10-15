@@ -1,13 +1,19 @@
 use std::{
-    fmt::{Display, Formatter},
+    fmt::{Debug, Display, Formatter},
     path::PathBuf,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Eq)]
 pub struct Cursor {
     pub offset: usize,
     pub line: usize,
     pub column: usize,
+}
+
+impl PartialEq for Cursor {
+    fn eq(&self, other: &Self) -> bool {
+        self.offset == other.offset
+    }
 }
 
 impl Cursor {
@@ -49,7 +55,17 @@ impl Display for Cursor {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl Debug for Cursor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_incomplete() {
+            write!(f, "&{}", self.offset)
+        } else {
+            write!(f, "{}:{}", self.line + 1, self.column + 1)
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Span {
     pub start: Cursor,
     pub end: Cursor,
@@ -90,11 +106,21 @@ impl Display for Span {
     }
 }
 
+impl Debug for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.start == self.end {
+            write!(f, "{:?}", self.start)
+        } else {
+            write!(f, "{:?}..{:?}", self.start, self.end)
+        }
+    }
+}
+
 pub trait HasSpan {
     fn span(&self) -> Span;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Location {
     pub path: PathBuf,
     pub span: Span,
@@ -116,5 +142,11 @@ impl Display for Location {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // BUG: Breaks if path contains invalid Unicode.
         write!(f, "{}:{}", self.path.as_path().to_str().unwrap(), self.span)
+    }
+}
+
+impl Debug for Location {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }

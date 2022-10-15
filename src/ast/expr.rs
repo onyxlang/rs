@@ -1,4 +1,4 @@
-use super::{literal, Binop, Id, MacroCall};
+use super::{literal, Binop, Call, Id, MacroCall};
 use crate::location::{HasSpan, Span};
 use std::fmt::Debug;
 
@@ -8,6 +8,7 @@ pub enum Expr {
     IdRef(Id),
     MacroCall(MacroCall),
     Binop(Binop),
+    FunctionCall(Call),
 }
 
 impl HasSpan for Expr {
@@ -17,6 +18,7 @@ impl HasSpan for Expr {
             Expr::IdRef(id) => id.span(),
             Expr::MacroCall(m) => m.span(),
             Expr::Binop(b) => b.span(),
+            Expr::FunctionCall(c) => c.span(),
         }
     }
 }

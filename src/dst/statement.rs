@@ -1,5 +1,5 @@
-use super::{BuiltinType, Expr, InferType, VarDecl};
-use std::rc::Rc;
+use super::{r#struct, Expr, InferType, Scope, VarDecl};
+use std::{cell::RefCell, rc::Rc};
 
 pub enum Statement {
     VarDecl(Rc<VarDecl>),
@@ -8,7 +8,7 @@ pub enum Statement {
 }
 
 impl InferType for Statement {
-    fn infer_type(&self) -> BuiltinType {
-        BuiltinType::Void
+    fn infer_type(&self, _scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>> {
+        None
     }
 }

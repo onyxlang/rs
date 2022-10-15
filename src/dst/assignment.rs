@@ -1,6 +1,6 @@
-use super::{BuiltinType, Expr, InferType, VarRef};
+use super::{r#struct, Expr, InferType, Scope, VarRef};
 use crate::location::{HasSpan, Span};
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
 pub struct Assignment {
@@ -15,7 +15,7 @@ impl HasSpan for Assignment {
 }
 
 impl InferType for Assignment {
-    fn infer_type(&self) -> BuiltinType {
-        self.lhs.infer_type()
+    fn infer_type(&self, scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>> {
+        self.lhs.infer_type(scope)
     }
 }

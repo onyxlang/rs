@@ -1,5 +1,2 @@
 @[Builtin]
 export default struct Bool { }
-
-# @[Builtin]
-# decl ƒ Bool::eq?(self: Bool, another: Self) -> Self

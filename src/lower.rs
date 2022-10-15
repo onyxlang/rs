@@ -23,6 +23,9 @@ impl Lowerable for dst::Mod {
                 dst::Exportable::VarDecl(_) => {
                     // Currently variables are only declared for main.
                 }
+                dst::Exportable::FunctionDecl(_) => {
+                    // Function declarations aren't lowered.
+                }
             }
         }
 
@@ -41,6 +44,13 @@ impl Lowerable for dst::Mod {
                 }
                 dst::Exportable::VarDecl(_) => {
                     unimplemented!()
+                }
+                dst::Exportable::FunctionDecl(decl) => {
+                    if decl.as_ref().borrow().builtin.is_some() {
+                        // Do not import builtin function declarations.
+                    } else {
+                        unimplemented!("Lowering non-builtin structs")
+                    }
                 }
             }
         }
@@ -90,6 +100,35 @@ impl Lowerable for dst::Expr {
                 write!(w, " = ")?;
                 a.rhs.lower(w)
             }
+            dst::Expr::FunctionCall(c) => c.lower(w),
+        }
+    }
+}
+
+impl Lowerable for dst::Call {
+    fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
+        if let Some(builtin) = &self.callee.as_ref().borrow().builtin {
+            match builtin {
+                dst::function::Builtin::BoolEq => {
+                    self.args[0].lower(w)?;
+                    write!(w, " == ")?;
+                    self.args[1].lower(w)
+                }
+            }
+        } else {
+            unimplemented!("Lowering non-builtin structs")
+
+            // write!(w, "{}(", self.callee.as_ref().borrow().id())?;
+
+            // for (i, arg) in self.args.iter().enumerate() {
+            //     if i > 0 {
+            //         write!(w, ", ")?;
+            //     }
+
+            //     arg.lower(w)?;
+            // }
+
+            // write!(w, ")")
         }
     }
 }
@@ -117,13 +156,17 @@ impl Lowerable for dst::MacroCall {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Weak;
-
     use super::*;
+    use crate::unit::Unit;
+    use std::rc::{Rc, Weak};
 
+    // FIXME: Properly display panics (with source).
     fn assert_lowering(input: &str, expected: &str) {
         let ast_module = crate::parser::parse("".into(), input).expect("Failed to parse");
-        let dst_module = ast_module.resolve(Weak::new()).expect("Failed to resolve");
+        let unit = Unit::new(Weak::new(), "<test>".into());
+        let dst_module = ast_module
+            .resolve(Rc::downgrade(&unit))
+            .expect("Failed to resolve");
         let mut buf = Vec::<u8>::new();
         dst_module.lower(&mut buf).expect("Failed to lower");
         assert_eq!(String::from_utf8(buf).unwrap(), expected);
@@ -133,6 +176,7 @@ mod test {
     pub fn test_assert() {
         assert_lowering(
             r#"
+@[Builtin] struct Bool {}
 let a = true
 @assert(a)
             "#,
@@ -147,6 +191,7 @@ var @"a" = true;
     pub fn test_assignment() {
         assert_lowering(
             r#"
+@[Builtin] struct Bool {}
 let a = false
 a = true;
 @assert(a)
@@ -155,6 +200,24 @@ a = true;
 var @"a" = false;
 @"a" = true;
 @import("std").debug.assert(@"a");
+}
+"#,
+        );
+    }
+
+    #[test]
+    pub fn test_bool_eq() {
+        assert_lowering(
+            r#"
+@[Builtin] struct Bool { }
+@[Builtin] decl function eq?(self: Bool, another: Bool) -> Bool
+let a = false
+let b = true
+eq?(a, b);"#,
+            r#"pub fn main() void {
+var @"a" = false;
+var @"b" = true;
+@"a" == @"b";
 }
 "#,
         );

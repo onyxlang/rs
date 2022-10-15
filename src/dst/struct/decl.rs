@@ -3,7 +3,7 @@ use crate::{
     ast,
     dst::{HasASTId, HasId},
 };
-use std::rc::Rc;
+use std::{fmt::Display, rc::Rc};
 
 /// A struct declaration node.
 #[derive(Debug)]
@@ -37,5 +37,17 @@ impl HasId for Decl {
 impl HasASTId for Decl {
     fn ast_id(&self) -> ast::Id {
         self.ast_node.id.clone()
+    }
+}
+
+impl PartialEq for Decl {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl Display for Decl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "struct {}", self.id())
     }
 }

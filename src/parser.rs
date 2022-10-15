@@ -44,7 +44,9 @@ peg::parser! {
             begin:position!()
             value:$(quiet!{
                 ("_" / ['a'..='z' | 'A'..='Z'])
-                ("_" / ['a'..='z' | 'A'..='Z' | '0'..='9'])* } / expected!("identifier"))
+                ("_" / ['a'..='z' | 'A'..='Z' | '0'..='9'])*
+                "?"?
+            } / expected!("identifier"))
             end:position!()
         { ast::Id::new(span!(begin, end), value.to_string()) }
 
@@ -63,6 +65,8 @@ peg::parser! {
 
     /// An expression.
     rule expr() -> ast::Expr = precedence! {
+        it:call() { ast::Expr::FunctionCall(it) }
+        --
         l:@ _? op:"=" _? r:(@) {
             ast::Expr::Binop(ast::Binop::new(l, "=".to_string(), r))
         }
@@ -71,6 +75,13 @@ peg::parser! {
         it:bool()       { ast::Expr::BoolLiteral(it) }
         it:id()         { ast::Expr::IdRef(it) }
     }
+
+    rule args() -> Vec<ast::Expr>
+        = "(" ___? args:(expr() ** ("," ___?)) ___? ")" { args }
+
+    rule call() -> ast::Call
+        = begin:position!() callee:id() args:args() end:position!()
+        { ast::Call::new(span!(begin, end), callee, args) }
 
     /// A macro call.
     rule macro_call() -> ast::MacroCall
@@ -138,12 +149,41 @@ peg::parser! {
             )
         }
 
+    rule function_param() -> ast::function::Param
+        = begin:position!() id:id() _? ":" __? r#type:id() end:position!()
+        { ast::function::Param::new(span!(begin, end), id, r#type) }
+
+    /// A function declaration.
+    rule function_decl() -> ast::function::Decl
+        =
+            begin:position!()
+            export:("export" _)?
+            default:("default" _)?
+            "decl" _
+            ("function" / "ƒ") _
+            id:id() _?
+            "(" ___? params:function_param() ** ("," ___?) ")" _?
+            "->" __? return_type:id()
+            term()
+            end:position!()
+        {
+            ast::function::Decl::new(
+                span!(begin, end),
+                export.is_some(),
+                default.is_some(),
+                id,
+                params,
+                return_type
+            )
+        }
+
     /// A statement.
     rule statement() -> ast::Statement
-        = it:var_decl()   { ast::Statement::VarDecl(it) }
-        / it:import()     { ast::Statement::Import(it) }
-        / it:decorator()  { ast::Statement::Decorator(it) }
-        / it:struct_def() { ast::Statement::StructDef(it) }
+        = it:var_decl()      { ast::Statement::VarDecl(it) }
+        / it:import()        { ast::Statement::Import(it) }
+        / it:decorator()     { ast::Statement::Decorator(it) }
+        / it:struct_def()    { ast::Statement::StructDef(it) }
+        / it:function_decl() { ast::Statement::FunctionDecl(it) }
         / terminated_expr()
 
     rule block_body_el() -> ast::BlockBody
@@ -275,6 +315,77 @@ mod test {
                     ast::Id::new(span!(14, 17), "Foo".to_string()),
                     true,
                     false,
+                ),
+            ))],
+        };
+
+        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+    }
+
+    #[test]
+    pub fn test_function_decl1() {
+        let input = r#"export decl ƒ eq?(a: Bool, b: Bool) -> Bool"#;
+
+        let ast = ast::Mod {
+            body: vec![ast::BlockBody::Stmt(ast::Statement::FunctionDecl(
+                ast::function::Decl::new(
+                    span!(0, 44),
+                    true,
+                    false,
+                    ast::Id::new(span!(15, 18), "eq?".to_string()),
+                    vec![
+                        ast::function::Param::new(
+                            span!(19, 26),
+                            ast::Id::new(span!(19, 20), "a".to_string()),
+                            ast::Id::new(span!(22, 26), "Bool".to_string()),
+                        ),
+                        ast::function::Param::new(
+                            span!(28, 35),
+                            ast::Id::new(span!(28, 29), "b".to_string()),
+                            ast::Id::new(span!(31, 35), "Bool".to_string()),
+                        ),
+                    ],
+                    ast::Id::new(span!(40, 44), "Bool".to_string()),
+                ),
+            ))],
+        };
+
+        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+    }
+
+    #[test]
+    pub fn test_function_decl2() {
+        let input = r#"decl function foo ()-> Bar"#;
+
+        let ast = ast::Mod {
+            body: vec![ast::BlockBody::Stmt(ast::Statement::FunctionDecl(
+                ast::function::Decl::new(
+                    span!(0, 26),
+                    false,
+                    false,
+                    ast::Id::new(span!(14, 17), "foo".to_string()),
+                    vec![],
+                    ast::Id::new(span!(23, 26), "Bar".to_string()),
+                ),
+            ))],
+        };
+
+        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+    }
+
+    #[test]
+    pub fn test_call() {
+        let input = r#"x(y, true)"#;
+
+        let ast = ast::Mod {
+            body: vec![ast::BlockBody::Expr(ast::Expr::FunctionCall(
+                ast::Call::new(
+                    span!(0, 10),
+                    ast::Id::new(span!(0, 1), "x".to_string()),
+                    vec![
+                        ast::Expr::IdRef(ast::Id::new(span!(2, 3), "y".to_string())),
+                        ast::Expr::BoolLiteral(ast::literal::Bool::new(span!(5, 9), true)),
+                    ],
                 ),
             ))],
         };

@@ -1,2 +1,3 @@
+@[Builtin] struct Bool {} # Temp
 let x = false
 y = true

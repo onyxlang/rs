@@ -1,4 +1,4 @@
-use super::{r#struct, Decorator, Expr, Import, VarDecl};
+use super::{function, r#struct, Decorator, Expr, Import, VarDecl};
 use crate::location::{HasSpan, Span};
 use std::fmt::Debug;
 
@@ -12,6 +12,7 @@ pub enum Statement {
     Decorator(Decorator),
 
     StructDef(r#struct::Def),
+    FunctionDecl(function::Decl),
 }
 
 impl HasSpan for Statement {
@@ -22,6 +23,7 @@ impl HasSpan for Statement {
             Statement::Import(i) => i.span(),
             Statement::Decorator(d) => d.span(),
             Statement::StructDef(d) => d.span(),
+            Statement::FunctionDecl(d) => d.span(),
         }
     }
 }

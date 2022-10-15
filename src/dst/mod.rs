@@ -1,7 +1,9 @@
-use std::{cell::RefCell, rc::Weak};
+use std::{
+    cell::RefCell,
+    rc::{Rc, Weak},
+};
 
 mod scope;
-pub use scope::Exportable;
 pub use scope::Scope;
 
 mod var_decl;
@@ -31,10 +33,18 @@ pub mod r#struct;
 pub mod import;
 pub use import::Import;
 
+pub mod function;
+
+mod exportable;
+pub use exportable::Exportable;
+
+mod call;
+pub use call::Call;
+
 use crate::{ast, unit::Unit};
 
 pub trait InferType {
-    fn infer_type(&self) -> BuiltinType;
+    fn infer_type(&self, scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>>;
 }
 
 pub trait HasId {

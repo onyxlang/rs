@@ -1,3 +1,4 @@
+@[Builtin] struct Bool {} # Temp
 let x = false
 x = true
 @assert(x)

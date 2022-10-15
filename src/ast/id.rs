@@ -23,7 +23,7 @@ impl PartialEq for Id {
 
 impl Debug for Id {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Id`{}`", self.value)
+        write!(f, "Id`{}`@{:?}", self.value, self.span)
     }
 }
 

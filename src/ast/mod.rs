@@ -30,7 +30,11 @@ pub use import::Import;
 mod decorator;
 pub use decorator::Decorator;
 
+pub mod function;
 pub mod r#struct;
+
+mod call;
+pub use call::Call;
 
 use std::fmt::Debug;
 

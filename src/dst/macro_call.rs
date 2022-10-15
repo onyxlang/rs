@@ -1,9 +1,9 @@
-use super::{BuiltinType, Expr, InferType};
+use super::{r#struct, Expr, InferType, Scope};
 use crate::{
     ast,
     location::{HasSpan, Span},
 };
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 /// For now, a macro call is lowered to a specific Zig code.
 #[derive(Debug)]
@@ -20,9 +20,9 @@ impl HasSpan for MacroCall {
 }
 
 impl InferType for MacroCall {
-    fn infer_type(&self) -> BuiltinType {
+    fn infer_type(&self, _scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>> {
         match self {
-            MacroCall::Assert(..) => BuiltinType::Void,
+            MacroCall::Assert(..) => None,
         }
     }
 }

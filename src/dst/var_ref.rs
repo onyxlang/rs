@@ -1,9 +1,9 @@
-use super::{BuiltinType, InferType, VarDecl};
+use super::{r#struct, InferType, Scope, VarDecl};
 use crate::{
     ast,
     location::{HasSpan, Span},
 };
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone, Debug)]
 pub struct VarRef {
@@ -24,7 +24,7 @@ impl HasSpan for VarRef {
 }
 
 impl InferType for VarRef {
-    fn infer_type(&self) -> BuiltinType {
-        self.decl.r#type
+    fn infer_type(&self, _scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>> {
+        Some(self.decl.r#type.clone())
     }
 }

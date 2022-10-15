@@ -1,8 +1,12 @@
 import Bool from "../builtin/bool.nx"
+# import { eq? } from "./eq.nx"
+# Note the aliased id.
+import eq from "./eq.nx"
 
 # This is a comment.
 # let x: Bool = false
 let x = false
 x = true;
-# @assert(x.eq?(true))
-@assert(x)
+let y = true
+# @assert(x)
+@assert(eq(x, y))

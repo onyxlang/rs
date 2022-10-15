@@ -25,6 +25,7 @@ pub struct Panic {
 }
 
 impl Panic {
+    // TODO: Pass notes here, still allow to add later.
     pub fn new(message: String, location: Option<Location>) -> Self {
         Self {
             message,

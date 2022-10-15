@@ -1,4 +1,4 @@
-use super::{r#struct, HasId, Mod, VarDecl};
+use super::{Exportable, HasASTId, HasId, Mod};
 use crate::{
     ast,
     dst::{self},
@@ -6,25 +6,12 @@ use crate::{
     program::Program,
     Location, Panic,
 };
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
-
-#[derive(Clone, Debug)]
-pub enum Exportable {
-    VarDecl(Rc<VarDecl>),
-    StructDecl(Rc<RefCell<r#struct::Decl>>),
-}
-
-impl HasId for Exportable {
-    fn id(&self) -> String {
-        match self {
-            Exportable::VarDecl(decl) => decl.id(),
-            Exportable::StructDecl(decl) => decl.borrow().id(),
-        }
-    }
-}
+use std::{path::PathBuf, rc::Rc};
 
 pub trait Scope {
     fn path(&self) -> PathBuf;
+
+    fn search_builtin(&self, id: &str) -> Option<Exportable>;
 
     /// Search in self.
     fn search(&self, id: &str) -> Option<Exportable>;
@@ -32,17 +19,42 @@ pub trait Scope {
     /// NOTE: Shall call `add_import` after resolving.
     fn resolve_import(&mut self, node: ast::Import) -> Result<dst::Import, Panic>;
 
-    fn add_import(&mut self, id: &str, import: dst::Import);
+    /// Should call `ensure_not_stored` within.
+    fn add_import(&mut self, id: &ast::Id, import: dst::Import) -> Result<(), Panic>;
 
     fn push_decorator(&mut self, decorator: dst::decorator::Application);
     fn pop_decorators(&mut self) -> Vec<dst::decorator::Application>;
 
-    fn store(&mut self, entity: Exportable);
+    /// Should call `ensure_not_stored` within.
+    fn store(&mut self, entity: Exportable) -> Result<(), Panic>;
+
+    /// May panic if already has a declaration with the same id.
+    fn ensure_not_stored(&self, id: &ast::Id) -> Result<(), Panic> {
+        if let Some(found) = self.search(&id.value) {
+            let mut panic = Panic::new(
+                format!("`{}` already declared", id.value),
+                Some(Location::new(self.path(), id.span())),
+            );
+
+            panic.add_note(
+                "Previously declared here".to_string(),
+                Some(Location::new(self.path(), found.ast_id().span())),
+            );
+
+            return Err(panic);
+        }
+
+        Ok(())
+    }
 }
 
 impl Scope for dst::Mod {
     fn path(&self) -> PathBuf {
         self.unit.upgrade().unwrap().as_ref().borrow().path.clone()
+    }
+
+    fn search_builtin(&self, id: &str) -> Option<Exportable> {
+        todo!()
     }
 
     fn search(&self, id: &str) -> Option<Exportable> {
@@ -61,8 +73,10 @@ impl Scope for dst::Mod {
         None
     }
 
-    fn add_import(&mut self, id: &str, import: dst::Import) {
-        self.imports.insert(id.to_string(), import);
+    fn add_import(&mut self, id: &ast::Id, import: dst::Import) -> Result<(), Panic> {
+        self.ensure_not_stored(id)?;
+        self.imports.insert(id.value.clone(), import);
+        Ok(())
     }
 
     fn resolve_import(&mut self, node: ast::Import) -> Result<dst::Import, Panic> {
@@ -128,13 +142,17 @@ impl Scope for dst::Mod {
         new
     }
 
-    fn store(&mut self, entity: Exportable) {
+    fn store(&mut self, entity: Exportable) -> Result<(), Panic> {
+        self.ensure_not_stored(&entity.ast_id())?;
         self.declarations.insert(entity.id(), entity);
+        Ok(())
     }
 }
 
 impl Mod {
-    pub fn add_export(&mut self, id: &str, export: Exportable) {
-        self.exports.insert(id.to_string(), export);
+    pub fn add_export(&mut self, id: &ast::Id, export: Exportable) -> Result<(), Panic> {
+        self.ensure_not_stored(id)?;
+        self.exports.insert(id.value.clone(), export);
+        Ok(())
     }
 }

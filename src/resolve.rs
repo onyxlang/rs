@@ -24,7 +24,7 @@ impl ast::Mod {
                 ast::BlockBody::Stmt(stmt) => match stmt {
                     ast::Statement::VarDecl(var_decl) => {
                         let var = var_decl.resolve(&mut dst_module)?;
-                        dst_module.store(dst::Exportable::VarDecl(Rc::clone(&var)));
+                        dst_module.store(dst::Exportable::VarDecl(Rc::clone(&var)))?;
                         dst_module.main.push(dst::Statement::VarDecl(var));
                     }
                     ast::Statement::TerminatedExpr(expr) => {
@@ -33,7 +33,7 @@ impl ast::Mod {
                     }
                     ast::Statement::Import(i) => {
                         let import = i.resolve(&mut dst_module)?;
-                        dst_module.add_import(&i.id.value, import);
+                        dst_module.add_import(&i.id, import)?;
                     }
                     ast::Statement::Decorator(d) => {
                         let decorator = d.resolve(&mut dst_module)?;
@@ -41,7 +41,7 @@ impl ast::Mod {
                     }
                     ast::Statement::StructDef(def) => {
                         let decl = def.resolve(&mut dst_module)?;
-                        dst_module.store(dst::Exportable::StructDecl(Rc::clone(&decl)));
+                        dst_module.store(dst::Exportable::StructDecl(Rc::clone(&decl)))?;
 
                         if def.export {
                             if def.default {
@@ -49,7 +49,21 @@ impl ast::Mod {
                                     Some(dst::Exportable::StructDecl(Rc::clone(&decl)));
                             } else {
                                 dst_module
-                                    .add_export(&def.id.value, dst::Exportable::StructDecl(decl));
+                                    .add_export(&def.id, dst::Exportable::StructDecl(decl))?;
+                            }
+                        }
+                    }
+                    ast::Statement::FunctionDecl(decl) => {
+                        let dst = decl.resolve(&mut dst_module)?;
+                        dst_module.store(dst::Exportable::FunctionDecl(Rc::clone(&dst)))?;
+
+                        if decl.export {
+                            if decl.default {
+                                dst_module.default =
+                                    Some(dst::Exportable::FunctionDecl(Rc::clone(&dst)));
+                            } else {
+                                dst_module
+                                    .add_export(&decl.id, dst::Exportable::FunctionDecl(dst))?;
                             }
                         }
                     }
@@ -57,7 +71,7 @@ impl ast::Mod {
                 ast::BlockBody::Expr(expr) => {
                     let expr = expr.resolve(&mut dst_module)?;
 
-                    if expr.infer_type() != dst::BuiltinType::Void {
+                    if expr.infer_type(&dst_module).is_some() {
                         return Err(Panic::new(
                             "Unused expression result".to_string(),
                             Some(Location::new(dst_module.path(), expr.span())),
@@ -144,6 +158,10 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::r#struct::Def {
             }
         }
 
+        if builtin.is_none() {
+            unimplemented!("Non-builtin struct");
+        }
+
         let decl = Rc::new(RefCell::new(dst::r#struct::Decl::new(
             self.clone(),
             builtin,
@@ -153,6 +171,112 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::r#struct::Def {
         decl.borrow_mut().add_impl(r#impl);
 
         Ok(decl)
+    }
+}
+
+impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::function::Decl {
+    fn resolve(
+        &self,
+        scope: &mut dyn dst::Scope,
+    ) -> Result<Rc<RefCell<dst::function::Decl>>, Panic> {
+        let mut builtin: Option<dst::function::Builtin> = None;
+
+        for decorator in scope.pop_decorators() {
+            match decorator {
+                dst::decorator::Application {
+                    decorator: dst::decorator::Builtin::Builtin,
+                    ..
+                } => {
+                    if builtin.is_some() {
+                        return Err(Panic::new(
+                            "Duplicate decorator `Builtin`".to_string(),
+                            Some(Location::new(scope.path(), self.id.span())),
+                        ));
+                    }
+
+                    match self.id.value.as_str() {
+                        "eq?" => {
+                            builtin = Some(dst::function::Builtin::BoolEq);
+                        }
+                        &_ => {
+                            return Err(Panic::new(
+                                format!("Unknown builtin function `{}`", &self.id.value),
+                                Some(Location::new(scope.path(), self.id.span())),
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+
+        if builtin.is_none() {
+            unimplemented!("Non-builtin function");
+        }
+
+        let mut params: Vec<dst::function::decl::Param> = vec![];
+
+        for param in &self.params {
+            let param =
+                dst::function::decl::Param::new(param.id.clone(), param.r#type.resolve(scope)?);
+            params.push(param);
+        }
+
+        let return_type = self.return_type.resolve(scope)?;
+
+        let decl = Rc::new(RefCell::new(dst::function::Decl::new(
+            self.clone(),
+            builtin,
+            params,
+            Some(return_type),
+        )));
+
+        Ok(decl)
+    }
+}
+
+impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::Id {
+    fn resolve(
+        &self,
+        scope: &mut dyn dst::Scope,
+    ) -> Result<Rc<RefCell<dst::r#struct::Decl>>, Panic> {
+        let found = scope.search(&self.value).ok_or_else(|| {
+            Panic::new(
+                format!("Unknown id `{}`", &self.value),
+                Some(Location::new(scope.path(), self.span())),
+            )
+        })?;
+
+        if let dst::Exportable::StructDecl(decl) = found {
+            Ok(decl)
+        } else {
+            Err(Panic::new(
+                format!("Id `{}` is not a struct", &self.value),
+                Some(Location::new(scope.path(), self.span())),
+            ))
+        }
+    }
+}
+
+impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::Id {
+    fn resolve(
+        &self,
+        scope: &mut dyn dst::Scope,
+    ) -> Result<Rc<RefCell<dst::function::Decl>>, Panic> {
+        let found = scope.search(&self.value).ok_or_else(|| {
+            Panic::new(
+                format!("Unknown id `{}`", &self.value),
+                Some(Location::new(scope.path(), self.span())),
+            )
+        })?;
+
+        if let dst::Exportable::FunctionDecl(decl) = found {
+            Ok(decl)
+        } else {
+            Err(Panic::new(
+                format!("Id `{}` is not a function", &self.value),
+                Some(Location::new(scope.path(), self.span())),
+            ))
+        }
     }
 }
 
@@ -166,7 +290,14 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                         dst::Exportable::VarDecl(var) => Ok(Rc::new(dst::Expr::VarRef(
                             dst::VarRef::new(id.clone(), Rc::clone(&var)),
                         ))),
-                        dst::Exportable::StructDecl(_) => todo!(),
+                        dst::Exportable::StructDecl(_) => Err(Panic::new(
+                            format!("Cannot use struct `{}` as a value", id.value),
+                            Some(Location::new(scope.path(), id.span())),
+                        )),
+                        dst::Exportable::FunctionDecl(_) => Err(Panic::new(
+                            format!("Cannot use function `{}` as a value", id.value),
+                            Some(Location::new(scope.path(), id.span())),
+                        )),
                     }
                 } else {
                     Err(Panic::new(
@@ -182,12 +313,21 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                     let rhs = b.rhs.resolve(scope)?;
 
                     if let dst::Expr::VarRef(r#ref) = &*lhs {
-                        if r#ref.decl.r#type != rhs.infer_type() {
+                        let rhs_type = rhs.infer_type(scope);
+
+                        if rhs_type.is_none() {
+                            return Err(Panic::new(
+                                "Expression result must not be void".to_string(),
+                                Some(Location::new(scope.path(), b.span())),
+                            ));
+                        }
+
+                        if r#ref.decl.r#type != *rhs_type.as_ref().unwrap() {
                             return Err(Panic::new(
                                 format!(
-                                    "Type mismatch: expected {}, got {}",
-                                    r#ref.decl.r#type,
-                                    rhs.infer_type()
+                                    "Type mismatch: left is `{}`, right is `{}`",
+                                    r#ref.decl.r#type.as_ref().borrow(),
+                                    rhs_type.unwrap().as_ref().borrow()
                                 ),
                                 Some(Location::new(scope.path(), rhs.span())),
                             ));
@@ -206,6 +346,17 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                 }
                 &_ => todo!(),
             },
+            ast::Expr::FunctionCall(call) => {
+                let callee: Rc<RefCell<dst::function::Decl>> = call.callee.resolve(scope)?;
+                let mut args: Vec<Rc<dst::Expr>> = vec![];
+
+                for arg in &call.args {
+                    args.push(arg.resolve(scope)?);
+                }
+
+                let dstn = dst::Call::new(call.clone(), callee, args);
+                Ok(Rc::new(dst::Expr::FunctionCall(dstn)))
+            }
         }
     }
 }
@@ -215,8 +366,16 @@ impl Resolve<Rc<dst::VarDecl>> for ast::VarDecl {
     fn resolve(&self, scope: &mut dyn dst::Scope) -> Result<Rc<dst::VarDecl>, Panic> {
         // TODO: Apply decorators.
         let expr = self.expr.resolve(scope)?;
-        let r#type = expr.infer_type();
-        let var = Rc::new(dst::VarDecl::new(self.clone(), r#type, expr));
+        let r#type = expr.infer_type(scope);
+
+        if r#type.is_none() {
+            return Err(Panic::new(
+                "Expression returns void".to_string(),
+                Some(Location::new(scope.path(), expr.span())),
+            ));
+        }
+
+        let var = Rc::new(dst::VarDecl::new(self.clone(), r#type.unwrap(), expr));
         Ok(var)
     }
 }
