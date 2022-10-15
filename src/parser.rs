@@ -63,6 +63,13 @@ peg::parser! {
     // Expressions ============================================================
     //
 
+    rule qualifier() -> ast::Qualifier
+        =
+            begin:position!()
+            id:id()
+            end:position!()
+        { ast::Qualifier::new(span!(begin, end), id) }
+
     /// An expression.
     rule expr() -> ast::Expr = precedence! {
         it:call() { ast::Expr::FunctionCall(it) }
@@ -73,14 +80,14 @@ peg::parser! {
         --
         it:macro_call() { ast::Expr::MacroCall(it) }
         it:bool()       { ast::Expr::BoolLiteral(it) }
-        it:id()         { ast::Expr::IdRef(it) }
+        it:qualifier()  { ast::Expr::Ref(it) }
     }
 
     rule args() -> Vec<ast::Expr>
         = "(" ___? args:(expr() ** ("," ___?)) ___? ")" { args }
 
     rule call() -> ast::Call
-        = begin:position!() callee:id() args:args() end:position!()
+        = begin:position!() callee:qualifier() args:args() end:position!()
         { ast::Call::new(span!(begin, end), callee, args) }
 
     /// A macro call.
@@ -158,7 +165,12 @@ peg::parser! {
         }
 
     rule function_param() -> ast::function::Param
-        = begin:position!() id:id() _? ":" __? r#type:id() end:position!()
+        =
+            begin:position!()
+            id:id() _?
+            ":" __?
+            r#type:qualifier()
+            end:position!()
         { ast::function::Param::new(span!(begin, end), id, r#type) }
 
     /// A function declaration.
@@ -169,9 +181,9 @@ peg::parser! {
             default:("default" _)?
             "decl" _
             ("function" / "ƒ") _
-            id:id() _?
+            id:qualifier() _?
             "(" ___? params:function_param() ** ("," ___?) ")" _?
-            "->" __? return_type:id()
+            "->" __? return_type:qualifier()
             term()
             end:position!()
         {
@@ -248,7 +260,7 @@ mod test {
                 ast::BlockBody::Expr(ast::Expr::MacroCall(ast::MacroCall::new(
                     span!(14, 25),
                     ast::Id::new(span!(15, 21), "assert".to_string()),
-                    vec![ast::Expr::IdRef(ast::Id::new(
+                    vec![ast::Expr::Ref(ast::Qualifier::from_string(
                         span!(22, 23),
                         "x".to_string(),
                     ))],
@@ -279,9 +291,9 @@ mod test {
 
         let ast = ast::Mod {
             body: vec![ast::BlockBody::Expr(ast::Expr::Binop(ast::Binop::new(
-                ast::Expr::IdRef(ast::Id::new(span!(0, 1), "a".to_string())),
+                ast::Expr::Ref(ast::Qualifier::from_string(span!(0, 1), "a".to_string())),
                 "=".to_string(),
-                ast::Expr::IdRef(ast::Id::new(span!(4, 5), "b".to_string())),
+                ast::Expr::Ref(ast::Qualifier::from_string(span!(4, 5), "b".to_string())),
             )))],
         };
 
@@ -346,20 +358,20 @@ mod test {
                     span!(0, 44),
                     true,
                     false,
-                    ast::Id::new(span!(15, 18), "eq?".to_string()),
+                    ast::Qualifier::from_string(span!(15, 18), "eq?".to_string()),
                     vec![
                         ast::function::Param::new(
                             span!(19, 26),
                             ast::Id::new(span!(19, 20), "a".to_string()),
-                            ast::Id::new(span!(22, 26), "Bool".to_string()),
+                            ast::Qualifier::from_string(span!(22, 26), "Bool".to_string()),
                         ),
                         ast::function::Param::new(
                             span!(28, 35),
                             ast::Id::new(span!(28, 29), "b".to_string()),
-                            ast::Id::new(span!(31, 35), "Bool".to_string()),
+                            ast::Qualifier::from_string(span!(31, 35), "Bool".to_string()),
                         ),
                     ],
-                    ast::Id::new(span!(40, 44), "Bool".to_string()),
+                    ast::Qualifier::from_string(span!(40, 44), "Bool".to_string()),
                 ),
             ))],
         };
@@ -377,9 +389,9 @@ mod test {
                     span!(0, 26),
                     false,
                     false,
-                    ast::Id::new(span!(14, 17), "foo".to_string()),
+                    ast::Qualifier::from_string(span!(14, 17), "foo".to_string()),
                     vec![],
-                    ast::Id::new(span!(23, 26), "Bar".to_string()),
+                    ast::Qualifier::from_string(span!(23, 26), "Bar".to_string()),
                 ),
             ))],
         };
@@ -395,9 +407,9 @@ mod test {
             body: vec![ast::BlockBody::Expr(ast::Expr::FunctionCall(
                 ast::Call::new(
                     span!(0, 10),
-                    ast::Id::new(span!(0, 1), "x".to_string()),
+                    ast::Qualifier::from_string(span!(0, 1), "x".to_string()),
                     vec![
-                        ast::Expr::IdRef(ast::Id::new(span!(2, 3), "y".to_string())),
+                        ast::Expr::Ref(ast::Qualifier::from_string(span!(2, 3), "y".to_string())),
                         ast::Expr::BoolLiteral(ast::literal::Bool::new(span!(5, 9), true)),
                     ],
                 ),

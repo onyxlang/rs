@@ -51,11 +51,11 @@ pub trait InferType {
 }
 
 pub trait HasId {
-    fn id(&self) -> String;
+    fn id(&self) -> ast::Id;
 }
 
-pub trait HasASTId {
-    fn ast_id(&self) -> ast::Id;
+pub trait HasQualifier {
+    fn qualifier(&self) -> ast::Qualifier;
 }
 
 /// A DST module corresponds to a single source file.
@@ -148,8 +148,8 @@ impl Mod {
     }
 
     pub fn store(&mut self, entity: Exportable) -> Result<(), Panic> {
-        self.ensure_not_found(&entity.ast_id())?;
-        self.declarations.insert(entity.id(), entity);
+        self.ensure_not_found(&entity.id())?;
+        self.declarations.insert(entity.id().value, entity);
         Ok(())
     }
 }

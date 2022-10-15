@@ -1,9 +1,12 @@
 use super::Builtin;
 use crate::{
     ast,
-    dst::{r#struct, HasASTId, HasId},
+    dst::{r#struct, HasId, HasQualifier},
 };
 use std::{cell::RefCell, rc::Rc};
+
+mod param;
+pub use param::Param;
 
 #[derive(Debug)]
 pub struct Decl {
@@ -13,12 +16,6 @@ pub struct Decl {
 
     /// `None` means no returned value, i.e. `void`.
     pub return_type: Option<Rc<RefCell<r#struct::Decl>>>,
-}
-
-#[derive(Debug)]
-pub struct Param {
-    pub id: ast::Id,
-    pub r#type: Rc<RefCell<r#struct::Decl>>,
 }
 
 impl Decl {
@@ -37,32 +34,14 @@ impl Decl {
     }
 }
 
-impl HasASTId for Decl {
-    fn ast_id(&self) -> ast::Id {
-        self.ast_node.id.clone()
-    }
-}
-
 impl HasId for Decl {
-    fn id(&self) -> String {
-        self.ast_id().value
+    fn id(&self) -> ast::Id {
+        self.ast_node.id.id.clone()
     }
 }
 
-impl Param {
-    pub fn new(id: ast::Id, r#type: Rc<RefCell<r#struct::Decl>>) -> Self {
-        Self { id, r#type }
-    }
-}
-
-impl HasASTId for Param {
-    fn ast_id(&self) -> ast::Id {
-        self.id.clone()
-    }
-}
-
-impl HasId for Param {
-    fn id(&self) -> String {
-        self.ast_id().value
+impl HasQualifier for Decl {
+    fn qualifier(&self) -> ast::Qualifier {
+        self.ast_node.id.clone()
     }
 }

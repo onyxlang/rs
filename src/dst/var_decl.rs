@@ -1,4 +1,4 @@
-use super::{r#struct, Expr, HasASTId, HasId, InferType, Scope};
+use super::{r#struct, Expr, HasId, InferType, Scope};
 use crate::{
     ast,
     location::{HasSpan, Span},
@@ -26,15 +26,9 @@ impl VarDecl {
     }
 }
 
-impl HasASTId for VarDecl {
-    fn ast_id(&self) -> ast::Id {
-        self.ast_node.id.clone()
-    }
-}
-
 impl HasId for VarDecl {
-    fn id(&self) -> String {
-        self.ast_id().value
+    fn id(&self) -> ast::Id {
+        self.ast_node.id.clone()
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    ast::Id,
+    ast::Qualifier,
     location::{HasSpan, Span},
 };
 
@@ -10,9 +10,9 @@ pub struct Decl {
     span: Span,
     pub export: bool,
     pub default: bool,
-    pub id: Id,
+    pub id: Qualifier,
     pub params: Vec<Param>,
-    pub return_type: Id,
+    pub return_type: Qualifier,
 }
 
 impl Decl {
@@ -20,9 +20,9 @@ impl Decl {
         span: Span,
         export: bool,
         default: bool,
-        id: Id,
+        id: Qualifier,
         params: Vec<Param>,
-        return_type: Id,
+        return_type: Qualifier,
     ) -> Self {
         Self {
             span,

@@ -1,4 +1,4 @@
-use super::{Exportable, HasASTId};
+use super::{Exportable, HasId};
 use crate::{
     ast,
     dst::{self},
@@ -35,7 +35,7 @@ pub trait Scope {
 
             panic.add_note(
                 "Previously declared here".to_string(),
-                Some(Location::new(self.unit(), found.ast_id().span())),
+                Some(Location::new(self.unit(), found.id().span())),
             );
 
             return Err(panic);

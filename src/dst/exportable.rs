@@ -1,4 +1,4 @@
-use super::{function, r#struct, HasASTId, HasId, VarDecl};
+use super::{function, r#struct, HasId, VarDecl};
 use crate::ast;
 use std::{cell::RefCell, rc::Rc};
 
@@ -11,21 +11,11 @@ pub enum Exportable {
 }
 
 impl HasId for Exportable {
-    fn id(&self) -> String {
+    fn id(&self) -> ast::Id {
         match self {
             Exportable::VarDecl(decl) => decl.id(),
             Exportable::StructDecl(decl) => decl.borrow().id(),
             Exportable::FunctionDecl(decl) => decl.borrow().id(),
-        }
-    }
-}
-
-impl HasASTId for Exportable {
-    fn ast_id(&self) -> ast::Id {
-        match self {
-            Exportable::VarDecl(decl) => decl.ast_id(),
-            Exportable::StructDecl(decl) => decl.borrow().ast_id(),
-            Exportable::FunctionDecl(decl) => decl.borrow().ast_id(),
         }
     }
 }

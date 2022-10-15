@@ -11,6 +11,8 @@ use crate::panic::Panic;
 use crate::unit::Unit;
 use crate::Location;
 
+mod qualifier;
+
 pub trait Resolve<T> {
     fn resolve(&self, scope: &mut dyn dst::Scope) -> Result<T, Panic>;
 }
@@ -68,7 +70,7 @@ impl ast::Mod {
                                     Some(dst::Exportable::FunctionDecl(Rc::clone(&dst)));
                             } else {
                                 dst_module
-                                    .add_export(&decl.id, dst::Exportable::FunctionDecl(dst))?;
+                                    .add_export(&decl.id.id, dst::Exportable::FunctionDecl(dst))?;
                             }
                         }
                     }
@@ -183,13 +185,13 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::function::Decl {
                         ));
                     }
 
-                    match self.id.value.as_str() {
+                    match self.id.id.value.as_str() {
                         "eq?" => {
                             builtin = Some(dst::function::Builtin::BoolEq);
                         }
                         &_ => {
                             return Err(Panic::new(
-                                format!("Unknown builtin function `{}`", &self.id.value),
+                                format!("Unknown builtin function `{}`", &self.id),
                                 Some(Location::new(scope.unit(), self.id.span())),
                             ))
                         }
@@ -223,74 +225,28 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::function::Decl {
     }
 }
 
-impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::Id {
-    fn resolve(
-        &self,
-        scope: &mut dyn dst::Scope,
-    ) -> Result<Rc<RefCell<dst::r#struct::Decl>>, Panic> {
-        let found = scope.search(self).ok_or_else(|| {
-            Panic::new(
-                format!("Unknown id `{}`", &self.value),
-                Some(Location::new(scope.unit(), self.span())),
-            )
-        })?;
-
-        if let dst::Exportable::StructDecl(decl) = found {
-            Ok(decl)
-        } else {
-            Err(Panic::new(
-                format!("Id `{}` is not a struct", &self.value),
-                Some(Location::new(scope.unit(), self.span())),
-            ))
-        }
-    }
-}
-
-impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::Id {
-    fn resolve(
-        &self,
-        scope: &mut dyn dst::Scope,
-    ) -> Result<Rc<RefCell<dst::function::Decl>>, Panic> {
-        let found = scope.search(self).ok_or_else(|| {
-            Panic::new(
-                format!("Unknown id `{}`", &self.value),
-                Some(Location::new(scope.unit(), self.span())),
-            )
-        })?;
-
-        if let dst::Exportable::FunctionDecl(decl) = found {
-            Ok(decl)
-        } else {
-            Err(Panic::new(
-                format!("Id `{}` is not a function", &self.value),
-                Some(Location::new(scope.unit(), self.span())),
-            ))
-        }
-    }
-}
-
 impl Resolve<Rc<dst::Expr>> for ast::Expr {
     fn resolve(&self, scope: &mut dyn dst::Scope) -> Result<Rc<dst::Expr>, Panic> {
         match self {
             ast::Expr::BoolLiteral(b) => Ok(Rc::new(dst::Expr::BoolLiteral(b.clone()))),
-            ast::Expr::IdRef(id) => {
-                if let Some(ent) = scope.search(id) {
+            ast::Expr::Ref(id) => {
+                if let Some(ent) = scope.search(&id.id) {
                     match ent {
                         dst::Exportable::VarDecl(var) => Ok(Rc::new(dst::Expr::VarRef(
-                            dst::VarRef::new(id.clone(), Rc::clone(&var)),
+                            dst::VarRef::new(id.id.clone(), Rc::clone(&var)),
                         ))),
                         dst::Exportable::StructDecl(_) => Err(Panic::new(
-                            format!("Cannot use struct `{}` as a value", id.value),
+                            format!("Cannot use struct {} as a value", id),
                             Some(Location::new(scope.unit(), id.span())),
                         )),
                         dst::Exportable::FunctionDecl(_) => Err(Panic::new(
-                            format!("Cannot use function `{}` as a value", id.value),
+                            format!("Cannot use function {} as a value", id),
                             Some(Location::new(scope.unit(), id.span())),
                         )),
                     }
                 } else {
                     Err(Panic::new(
-                        format!("Unknown identifier: {}", id.value),
+                        format!("Invalid reference {}", id),
                         Some(Location::new(scope.unit(), id.span())),
                     ))
                 }

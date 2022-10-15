@@ -39,6 +39,9 @@ pub use call::Call;
 mod export;
 pub use export::Export;
 
+mod qualifier;
+pub use qualifier::Qualifier;
+
 use std::fmt::Debug;
 
 /// An ASt module corresponds to a single source file.

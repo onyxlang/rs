@@ -1,8 +1,5 @@
 use super::{Builtin, Impl};
-use crate::{
-    ast,
-    dst::{HasASTId, HasId},
-};
+use crate::{ast, dst::HasId};
 use std::{fmt::Display, rc::Rc};
 
 /// A struct declaration node.
@@ -29,13 +26,7 @@ impl Decl {
 }
 
 impl HasId for Decl {
-    fn id(&self) -> String {
-        self.ast_node.id.value.clone()
-    }
-}
-
-impl HasASTId for Decl {
-    fn ast_id(&self) -> ast::Id {
+    fn id(&self) -> ast::Id {
         self.ast_node.id.clone()
     }
 }

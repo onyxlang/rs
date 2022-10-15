@@ -1,14 +1,17 @@
-use crate::{ast::Id, location::Span};
+use crate::{
+    ast::{Id, Qualifier},
+    location::Span,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Param {
     pub span: Span,
     pub id: Id,
-    pub r#type: Id,
+    pub r#type: Qualifier,
 }
 
 impl Param {
-    pub fn new(span: Span, id: Id, r#type: Id) -> Self {
+    pub fn new(span: Span, id: Id, r#type: Qualifier) -> Self {
         Self { span, id, r#type }
     }
 }
