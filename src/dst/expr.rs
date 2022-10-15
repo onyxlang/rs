@@ -31,7 +31,7 @@ impl InferType for Expr {
     fn infer_type(&self, scope: &dyn Scope) -> Option<Rc<RefCell<r#struct::Decl>>> {
         match self {
             Expr::BoolLiteral(_) => {
-                let found = scope.search_builtin("Bool");
+                let found = scope.search_builtin(&ast::Id::new(self.span(), "Bool".to_string()));
 
                 if let Some(Exportable::StructDecl(decl)) = found {
                     Some(decl)

@@ -228,7 +228,7 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::Id {
         &self,
         scope: &mut dyn dst::Scope,
     ) -> Result<Rc<RefCell<dst::r#struct::Decl>>, Panic> {
-        let found = scope.search(&self.value).ok_or_else(|| {
+        let found = scope.search(self).ok_or_else(|| {
             Panic::new(
                 format!("Unknown id `{}`", &self.value),
                 Some(Location::new(scope.unit(), self.span())),
@@ -251,7 +251,7 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::Id {
         &self,
         scope: &mut dyn dst::Scope,
     ) -> Result<Rc<RefCell<dst::function::Decl>>, Panic> {
-        let found = scope.search(&self.value).ok_or_else(|| {
+        let found = scope.search(self).ok_or_else(|| {
             Panic::new(
                 format!("Unknown id `{}`", &self.value),
                 Some(Location::new(scope.unit(), self.span())),
@@ -274,7 +274,7 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
         match self {
             ast::Expr::BoolLiteral(b) => Ok(Rc::new(dst::Expr::BoolLiteral(b.clone()))),
             ast::Expr::IdRef(id) => {
-                if let Some(ent) = scope.search(id.value.as_str()) {
+                if let Some(ent) = scope.search(id) {
                     match ent {
                         dst::Exportable::VarDecl(var) => Ok(Rc::new(dst::Expr::VarRef(
                             dst::VarRef::new(id.clone(), Rc::clone(&var)),
