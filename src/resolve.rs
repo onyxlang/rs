@@ -79,7 +79,7 @@ impl ast::Mod {
                     if expr.infer_type(&dst_module).is_some() {
                         return Err(Panic::new(
                             "Unused expression result".to_string(),
-                            Some(Location::new(dst_module.path(), expr.span())),
+                            Some(Location::new(dst_module.unit(), expr.span())),
                         ));
                     }
 
@@ -106,7 +106,7 @@ impl Resolve<dst::decorator::Application> for ast::Decorator {
             // TODO: Lookup for the decorator definition in the scope.
             _ => Err(Panic::new(
                 format!("Unknown decorator `{}`", &self.id.value),
-                Some(Location::new(scope.path(), self.id.span())),
+                Some(Location::new(scope.unit(), self.id.span())),
             )),
         }
     }
@@ -128,7 +128,7 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::r#struct::Def {
                     if builtin.is_some() {
                         return Err(Panic::new(
                             "Duplicate decorator `Builtin`".to_string(),
-                            Some(Location::new(scope.path(), self.id.span())),
+                            Some(Location::new(scope.unit(), self.id.span())),
                         ));
                     }
 
@@ -139,7 +139,7 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::r#struct::Def {
                         &_ => {
                             return Err(Panic::new(
                                 format!("Unknown builtin struct `{}`", &self.id.value),
-                                Some(Location::new(scope.path(), self.id.span())),
+                                Some(Location::new(scope.unit(), self.id.span())),
                             ))
                         }
                     }
@@ -179,7 +179,7 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::function::Decl {
                     if builtin.is_some() {
                         return Err(Panic::new(
                             "Duplicate decorator `Builtin`".to_string(),
-                            Some(Location::new(scope.path(), self.id.span())),
+                            Some(Location::new(scope.unit(), self.id.span())),
                         ));
                     }
 
@@ -190,7 +190,7 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::function::Decl {
                         &_ => {
                             return Err(Panic::new(
                                 format!("Unknown builtin function `{}`", &self.id.value),
-                                Some(Location::new(scope.path(), self.id.span())),
+                                Some(Location::new(scope.unit(), self.id.span())),
                             ))
                         }
                     }
@@ -231,7 +231,7 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::Id {
         let found = scope.search(&self.value).ok_or_else(|| {
             Panic::new(
                 format!("Unknown id `{}`", &self.value),
-                Some(Location::new(scope.path(), self.span())),
+                Some(Location::new(scope.unit(), self.span())),
             )
         })?;
 
@@ -240,7 +240,7 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::Id {
         } else {
             Err(Panic::new(
                 format!("Id `{}` is not a struct", &self.value),
-                Some(Location::new(scope.path(), self.span())),
+                Some(Location::new(scope.unit(), self.span())),
             ))
         }
     }
@@ -254,7 +254,7 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::Id {
         let found = scope.search(&self.value).ok_or_else(|| {
             Panic::new(
                 format!("Unknown id `{}`", &self.value),
-                Some(Location::new(scope.path(), self.span())),
+                Some(Location::new(scope.unit(), self.span())),
             )
         })?;
 
@@ -263,7 +263,7 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::Id {
         } else {
             Err(Panic::new(
                 format!("Id `{}` is not a function", &self.value),
-                Some(Location::new(scope.path(), self.span())),
+                Some(Location::new(scope.unit(), self.span())),
             ))
         }
     }
@@ -281,17 +281,17 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                         ))),
                         dst::Exportable::StructDecl(_) => Err(Panic::new(
                             format!("Cannot use struct `{}` as a value", id.value),
-                            Some(Location::new(scope.path(), id.span())),
+                            Some(Location::new(scope.unit(), id.span())),
                         )),
                         dst::Exportable::FunctionDecl(_) => Err(Panic::new(
                             format!("Cannot use function `{}` as a value", id.value),
-                            Some(Location::new(scope.path(), id.span())),
+                            Some(Location::new(scope.unit(), id.span())),
                         )),
                     }
                 } else {
                     Err(Panic::new(
                         format!("Unknown identifier: {}", id.value),
-                        Some(Location::new(scope.path(), id.span())),
+                        Some(Location::new(scope.unit(), id.span())),
                     ))
                 }
             }
@@ -307,7 +307,7 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                         if rhs_type.is_none() {
                             return Err(Panic::new(
                                 "Expression result must not be void".to_string(),
-                                Some(Location::new(scope.path(), b.span())),
+                                Some(Location::new(scope.unit(), b.span())),
                             ));
                         }
 
@@ -318,7 +318,7 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                                     r#ref.decl.r#type.as_ref().borrow(),
                                     rhs_type.unwrap().as_ref().borrow()
                                 ),
-                                Some(Location::new(scope.path(), rhs.span())),
+                                Some(Location::new(scope.unit(), rhs.span())),
                             ));
                         }
 
@@ -329,7 +329,7 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                     } else {
                         Err(Panic::new(
                             "Left-hand side of assignment must be a variable".to_string(),
-                            Some(Location::new(scope.path(), lhs.span())),
+                            Some(Location::new(scope.unit(), lhs.span())),
                         ))
                     }
                 }
@@ -360,7 +360,7 @@ impl Resolve<Rc<dst::VarDecl>> for ast::VarDecl {
         if r#type.is_none() {
             return Err(Panic::new(
                 "Expression returns void".to_string(),
-                Some(Location::new(scope.path(), expr.span())),
+                Some(Location::new(scope.unit(), expr.span())),
             ));
         }
 
@@ -379,7 +379,7 @@ impl Resolve<dst::MacroCall> for ast::MacroCall {
             }
             _ => Err(Panic::new(
                 format!("Unknown macro: {}", self.id.value),
-                Some(Location::new(scope.path(), self.id.span())),
+                Some(Location::new(scope.unit(), self.id.span())),
             )),
         }
     }

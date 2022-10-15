@@ -1,10 +1,10 @@
-use std::path::PathBuf;
+use std::{cell::RefCell, rc::Rc};
 
-use crate::{ast, location, location::Span, Location, Panic};
+use crate::{ast, location::Cursor, location::Span, unit::Unit, Location, Panic};
 
 macro_rules! span {
     ($begin: expr, $end: expr) => {
-        Span::incomplete($begin, $end)
+        Span::new(Cursor::new($begin), Cursor::new($end))
     };
 }
 
@@ -209,18 +209,23 @@ peg::parser! {
 
 impl From<peg::str::LineCol> for Span {
     fn from(lc: peg::str::LineCol) -> Self {
-        Self::thin(location::Cursor::new(lc.offset, lc.line - 1, lc.column - 1))
+        Self::thin(Cursor::new(lc.offset))
     }
 }
 
-pub fn parse(path: PathBuf, source: &str) -> Result<ast::Mod, Panic> {
-    match onyx_parser::start(source) {
+pub fn parse(unit: Rc<RefCell<Unit>>) -> Result<ast::Mod, Panic> {
+    match onyx_parser::start(&unit.as_ref().borrow_mut().try_source()?) {
         Ok(result) => Ok(result),
         Err(err) => Err(Panic::new(
             format!("Expected {}", err.expected),
-            Some(Location::new(path, err.location.into())),
+            Some(Location::new(unit.clone(), err.location.into())),
         )),
     }
+}
+
+/// Rust-panics upon failure.
+pub fn parse_simple(source: &str) -> ast::Mod {
+    onyx_parser::start(source).unwrap()
 }
 
 #[cfg(test)]
@@ -251,7 +256,7 @@ mod test {
             ],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -265,7 +270,7 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -280,7 +285,7 @@ mod test {
             )))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -297,7 +302,7 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -310,7 +315,7 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -328,7 +333,7 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -359,7 +364,7 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -379,7 +384,7 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 
     #[test]
@@ -399,6 +404,6 @@ mod test {
             ))],
         };
 
-        assert_eq!(parse(PathBuf::new(), input).as_ref().unwrap(), &ast);
+        assert_eq!(parse_simple(input), ast);
     }
 }

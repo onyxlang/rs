@@ -162,7 +162,7 @@ mod test {
 
     // FIXME: Properly display panics (with source).
     fn assert_lowering(input: &str, expected: &str) {
-        let ast_module = crate::parser::parse("".into(), input).expect("Failed to parse");
+        let ast_module = crate::parser::parse_simple(input);
         let program = Program::new(".cache".into());
         let unit = Unit::new(Rc::downgrade(&program), "<test>".into());
         let dst_module = ast_module

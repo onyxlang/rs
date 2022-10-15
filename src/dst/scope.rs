@@ -4,12 +4,14 @@ use crate::{
     dst::{self},
     location::HasSpan,
     program::Program,
+    unit::Unit,
     Location, Panic,
 };
-use std::{path::PathBuf, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 pub trait Scope {
     fn path(&self) -> PathBuf;
+    fn unit(&self) -> Rc<RefCell<Unit>>;
 
     fn search_builtin(&self, id: &str) -> Option<Exportable>;
 
@@ -33,12 +35,12 @@ pub trait Scope {
         if let Some(found) = self.search(&id.value) {
             let mut panic = Panic::new(
                 format!("`{}` already declared", id.value),
-                Some(Location::new(self.path(), id.span())),
+                Some(Location::new(self.unit(), id.span())),
             );
 
             panic.add_note(
                 "Previously declared here".to_string(),
-                Some(Location::new(self.path(), found.ast_id().span())),
+                Some(Location::new(self.unit(), found.ast_id().span())),
             );
 
             return Err(panic);
@@ -51,6 +53,10 @@ pub trait Scope {
 impl Scope for dst::Mod {
     fn path(&self) -> PathBuf {
         self.unit.upgrade().unwrap().as_ref().borrow().path.clone()
+    }
+
+    fn unit(&self) -> Rc<RefCell<Unit>> {
+        self.unit.upgrade().unwrap()
     }
 
     fn search_builtin(&self, id: &str) -> Option<Exportable> {
@@ -127,7 +133,7 @@ impl Scope for dst::Mod {
         if path == self.path() {
             return Err(Panic::new(
                 "Cannot import from self".to_string(),
-                Some(Location::new(self.path(), from.span())),
+                Some(Location::new(self.unit(), from.span())),
             ));
         }
 
@@ -153,7 +159,7 @@ impl Scope for dst::Mod {
                     "Module at \"{}\" doesn't have a default export",
                     path.display()
                 ),
-                Some(Location::new(self.path(), from.span())),
+                Some(Location::new(self.unit(), from.span())),
             ));
         }
 

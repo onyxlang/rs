@@ -8,6 +8,7 @@ use std::{
 pub struct Unit {
     pub program: Weak<RefCell<Program>>,
     pub path: PathBuf,
+    source: Option<Rc<String>>,
     ast: Option<ast::Mod>,
     pub dst: Option<dst::Mod>,
     pub lowered_path: Option<PathBuf>,
@@ -19,6 +20,7 @@ impl Unit {
         Rc::new(RefCell::new(Self {
             program,
             path,
+            source: None,
             ast: None,
             dst: None,
             lowered_path: None,
@@ -26,22 +28,14 @@ impl Unit {
         }))
     }
 
-    pub fn parse(&mut self) -> Result<(), Panic> {
-        if self.ast.is_some() {
-            return Ok(()); // Already parsed
+    pub fn try_source(&mut self) -> Result<Rc<String>, Panic> {
+        if self.source.is_some() {
+            return Ok(self.source.as_ref().unwrap().clone());
         }
 
-        let result = match self.path.to_str() {
-            Some("builtin") => parser::parse(
-                "../lang/builtin.nx".into(),
-                include_str!("../lang/builtin.nx"),
-            )?,
-
-            Some("builtin/bool") => parser::parse(
-                "../lang/builtin/bool.nx".into(),
-                include_str!("../lang/builtin/bool.nx"),
-            )?,
-
+        self.source = Some(Rc::new(match self.path.to_str() {
+            Some("builtin") => include_str!("../lang/builtin.nx").to_string(),
+            Some("builtin/bool") => include_str!("../lang/builtin/bool.nx").to_string(),
             _ => {
                 let source = std::fs::read_to_string(&self.path);
 
@@ -56,11 +50,25 @@ impl Unit {
                     ));
                 }
 
-                parser::parse(self.path.clone(), &source.unwrap())?
+                source.unwrap()
             }
-        };
+        }));
 
-        self.ast = Some(result);
+        Ok(self.source.as_ref().unwrap().clone())
+    }
+
+    pub fn source(&self) -> Rc<String> {
+        self.source.as_ref().expect("Source not loaded").clone()
+    }
+
+    pub fn parse(this: Rc<RefCell<Self>>) -> Result<(), Panic> {
+        if this.as_ref().borrow().ast.is_some() {
+            return Ok(()); // Already parsed
+        }
+
+        let result = parser::parse(this.clone())?;
+        this.as_ref().borrow_mut().ast = Some(result);
+
         Ok(())
     }
 
@@ -69,9 +77,9 @@ impl Unit {
             return Ok(()); // Already resolved
         }
 
-        this.borrow_mut().parse()?;
+        Self::parse(this.clone())?;
 
-        let ast = this.borrow_mut().ast.take().unwrap();
+        let ast = this.as_ref().borrow_mut().ast.take().unwrap();
         let result = ast.resolve(Rc::downgrade(&this))?;
 
         this.borrow_mut().dst = Some(result);
