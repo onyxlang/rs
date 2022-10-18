@@ -30,7 +30,7 @@ impl Lowerable for dst::Mod {
         }
 
         for import in self.imports.iter() {
-            match &import.1.import {
+            match &import.1 {
                 dst::Exportable::StructDecl(decl) => {
                     if let Some(builtin) = decl.as_ref().borrow().builtin {
                         match builtin {
@@ -208,7 +208,7 @@ var @"a" = false;
     pub fn test_bool_eq() {
         assert_lowering(
             r#"
-@[Builtin] decl function eq?(self: Bool, another: Bool) -> Bool
+@[Builtin] fn eq?(self: Bool, another: Bool) -> Bool
 let a = false
 let b = true
 eq?(a, b);"#,

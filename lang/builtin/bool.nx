@@ -1,2 +1,2 @@
 @[Builtin]
-export default struct Bool { }
+pub struct Bool { }

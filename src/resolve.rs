@@ -34,13 +34,29 @@ impl ast::Mod {
                         dst_module.main.push(dst::Statement::TerminatedExpr(expr));
                     }
                     ast::Statement::Import(i) => {
-                        let default = dst_module.resolve_default_import(i.from.clone())?;
-                        let import = dst::Import::new(i.clone(), default);
-                        dst_module.add_import(&i.id, import)?;
-                    }
-                    ast::Statement::Export(e) => {
-                        let default = dst_module.resolve_default_import(e.from.clone())?;
-                        dst_module.add_export(&e.id, default)?;
+                        let dep = dst_module.resolve_dependency(i.from.clone())?;
+
+                        for id in &i.ids {
+                            let export = dep
+                                .as_ref()
+                                .borrow()
+                                .dst
+                                .as_ref()
+                                .unwrap()
+                                .search(id)
+                                .ok_or_else(|| {
+                                    Panic::new(
+                                        format!("`{}` not found in {}", id.value, i.from),
+                                        Some(Location::new(dst_module.unit(), id.span())),
+                                    )
+                                })?;
+
+                            if i.r#pub {
+                                dst_module.exports.insert(id.value.clone(), export.clone());
+                            }
+
+                            dst_module.imports.insert(id.value.clone(), export);
+                        }
                     }
                     ast::Statement::Decorator(d) => {
                         let decorator = d.resolve(&mut dst_module)?;
@@ -50,28 +66,21 @@ impl ast::Mod {
                         let decl = def.resolve(&mut dst_module)?;
                         dst_module.store(dst::Exportable::StructDecl(Rc::clone(&decl)))?;
 
-                        if def.export {
-                            if def.default {
-                                dst_module.default_export =
-                                    Some(dst::Exportable::StructDecl(Rc::clone(&decl)));
-                            } else {
-                                dst_module
-                                    .add_export(&def.id, dst::Exportable::StructDecl(decl))?;
-                            }
+                        if def.r#pub {
+                            dst_module
+                                .exports
+                                .insert(def.id.value.clone(), dst::Exportable::StructDecl(decl));
                         }
                     }
                     ast::Statement::FunctionDecl(decl) => {
                         let dst = decl.resolve(&mut dst_module)?;
                         dst_module.store(dst::Exportable::FunctionDecl(Rc::clone(&dst)))?;
 
-                        if decl.export {
-                            if decl.default {
-                                dst_module.default_export =
-                                    Some(dst::Exportable::FunctionDecl(Rc::clone(&dst)));
-                            } else {
-                                dst_module
-                                    .add_export(&decl.id.id, dst::Exportable::FunctionDecl(dst))?;
-                            }
+                        if decl.r#pub {
+                            dst_module.exports.insert(
+                                decl.id.id.value.clone(),
+                                dst::Exportable::FunctionDecl(dst),
+                            );
                         }
                     }
                 },

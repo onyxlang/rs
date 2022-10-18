@@ -113,18 +113,11 @@ peg::parser! {
     rule import() -> ast::Import
         =
             begin:position!()
-            "import" _ id:id() _
+            r#pub:("pub" _)?
+            "import" _? "{" ___? ids:(id() ** ("," ___?)) ___? "}" _?
             "from" _ from:string()
             end:position!()
-        { ast::Import::new(span!(begin, end), id, from) }
-
-    rule export() -> ast::Export
-        =
-            begin:position!()
-            "export" _ id:id() _
-            "from" _ from:string()
-            end:position!()
-        { ast::Export::new(span!(begin, end), id, from) }
+        { ast::Import::new(span!(begin, end), r#pub.is_some(), ids, from) }
 
     /// A decorator, e.g. `@[Foo]`.
     rule decorator() -> ast::Decorator
@@ -151,16 +144,14 @@ peg::parser! {
     rule struct_def() -> ast::r#struct::Def
         =
             begin:position!()
-            export:("export" _)?
-            default:("default" _)?
+            r#pub:("pub" _)?
             "struct" _ id:id() _? "{" ___? "}"
             end:position!()
         {
             ast::r#struct::Def::new(
                 span!(begin, end),
+                r#pub.is_some(),
                 id,
-                export.is_some(),
-                default.is_some()
             )
         }
 
@@ -177,10 +168,8 @@ peg::parser! {
     rule function_decl() -> ast::function::Decl
         =
             begin:position!()
-            export:("export" _)?
-            default:("default" _)?
-            "decl" _
-            ("function" / "ƒ") _
+            r#pub:("pub" _)?
+            "fn" _
             id:qualifier() _?
             "(" ___? params:function_param() ** ("," ___?) ")" _?
             "->" __? return_type:qualifier()
@@ -189,8 +178,7 @@ peg::parser! {
         {
             ast::function::Decl::new(
                 span!(begin, end),
-                export.is_some(),
-                default.is_some(),
+                r#pub.is_some(),
                 id,
                 params,
                 return_type
@@ -201,7 +189,6 @@ peg::parser! {
     rule statement() -> ast::Statement
         = it:var_decl()      { ast::Statement::VarDecl(it) }
         / it:import()        { ast::Statement::Import(it) }
-        / it:export()        { ast::Statement::Export(it) }
         / it:decorator()     { ast::Statement::Decorator(it) }
         / it:struct_def()    { ast::Statement::StructDef(it) }
         / it:function_decl() { ast::Statement::FunctionDecl(it) }
@@ -302,14 +289,15 @@ mod test {
 
     #[test]
     pub fn test_import() {
-        let input = r#"import Foo from "bar""#;
+        let input = r#"pub import { Foo } from "bar""#;
 
         let ast = ast::Mod {
             body: vec![ast::BlockBody::Stmt(ast::Statement::Import(
                 ast::Import::new(
-                    span!(0, 22),
-                    ast::Id::new(span!(7, 10), "Foo".to_string()),
-                    ast::literal::String::new(span!(18, 23), "bar".to_string()),
+                    span!(0, 29),
+                    true,
+                    vec![ast::Id::new(span!(13, 16), "Foo".to_string())],
+                    ast::literal::String::new(span!(24, 29), "bar".to_string()),
                 ),
             ))],
         };
@@ -332,15 +320,14 @@ mod test {
 
     #[test]
     pub fn test_struct_def() {
-        let input = r#"export struct Foo { }"#;
+        let input = r#"pub struct Foo { }"#;
 
         let ast = ast::Mod {
             body: vec![ast::BlockBody::Stmt(ast::Statement::StructDef(
                 ast::r#struct::Def::new(
-                    span!(0, 21),
-                    ast::Id::new(span!(14, 17), "Foo".to_string()),
+                    span!(0, 19),
                     true,
-                    false,
+                    ast::Id::new(span!(12, 15), "Foo".to_string()),
                 ),
             ))],
         };
@@ -350,28 +337,27 @@ mod test {
 
     #[test]
     pub fn test_function_decl1() {
-        let input = r#"export decl ƒ eq?(a: Bool, b: Bool) -> Bool"#;
+        let input = r#"pub fn eq?(a: Bool, b: Bool) -> Bool"#;
 
         let ast = ast::Mod {
             body: vec![ast::BlockBody::Stmt(ast::Statement::FunctionDecl(
                 ast::function::Decl::new(
-                    span!(0, 44),
+                    span!(0, 36),
                     true,
-                    false,
-                    ast::Qualifier::from_string(span!(15, 18), "eq?".to_string()),
+                    ast::Qualifier::from_string(span!(7, 10), "eq?".to_string()),
                     vec![
                         ast::function::Param::new(
-                            span!(19, 26),
-                            ast::Id::new(span!(19, 20), "a".to_string()),
-                            ast::Qualifier::from_string(span!(22, 26), "Bool".to_string()),
+                            span!(11, 18),
+                            ast::Id::new(span!(11, 12), "a".to_string()),
+                            ast::Qualifier::from_string(span!(14, 18), "Bool".to_string()),
                         ),
                         ast::function::Param::new(
-                            span!(28, 35),
-                            ast::Id::new(span!(28, 29), "b".to_string()),
-                            ast::Qualifier::from_string(span!(31, 35), "Bool".to_string()),
+                            span!(20, 27),
+                            ast::Id::new(span!(20, 21), "b".to_string()),
+                            ast::Qualifier::from_string(span!(23, 27), "Bool".to_string()),
                         ),
                     ],
-                    ast::Qualifier::from_string(span!(40, 44), "Bool".to_string()),
+                    ast::Qualifier::from_string(span!(32, 36), "Bool".to_string()),
                 ),
             ))],
         };
@@ -381,17 +367,16 @@ mod test {
 
     #[test]
     pub fn test_function_decl2() {
-        let input = r#"decl function foo ()-> Bar"#;
+        let input = r#"fn foo ()-> Bar"#;
 
         let ast = ast::Mod {
             body: vec![ast::BlockBody::Stmt(ast::Statement::FunctionDecl(
                 ast::function::Decl::new(
-                    span!(0, 26),
+                    span!(0, 15),
                     false,
-                    false,
-                    ast::Qualifier::from_string(span!(14, 17), "foo".to_string()),
+                    ast::Qualifier::from_string(span!(3, 6), "foo".to_string()),
                     vec![],
-                    ast::Qualifier::from_string(span!(23, 26), "Bar".to_string()),
+                    ast::Qualifier::from_string(span!(12, 15), "Bar".to_string()),
                 ),
             ))],
         };

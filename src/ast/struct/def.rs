@@ -8,20 +8,14 @@ use std::fmt::{Debug, Display, Formatter};
 #[derive(Clone)]
 pub struct Def {
     span: Span,
+    pub r#pub: bool,
     pub id: Id,
-    pub export: bool,
-    pub default: bool,
 }
 
 impl Def {
     // TODO: Panic if default without export.
-    pub fn new(span: Span, id: Id, export: bool, default: bool) -> Self {
-        Self {
-            span,
-            id,
-            export,
-            default,
-        }
+    pub fn new(span: Span, r#pub: bool, id: Id) -> Self {
+        Self { span, r#pub, id }
     }
 }
 

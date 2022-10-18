@@ -12,7 +12,7 @@ pub struct Unit {
     ast: Option<ast::Mod>,
     pub dst: Option<dst::Mod>,
     pub lowered_path: Option<PathBuf>,
-    pub dependencies: Vec<Weak<RefCell<Unit>>>,
+    pub dependencies: std::collections::HashMap<PathBuf, Weak<RefCell<Self>>>,
 }
 
 impl Unit {
@@ -24,7 +24,7 @@ impl Unit {
             ast: None,
             dst: None,
             lowered_path: None,
-            dependencies: Vec::new(),
+            dependencies: std::collections::HashMap::new(),
         }))
     }
 
@@ -77,6 +77,7 @@ impl Unit {
             return Ok(()); // Already resolved
         }
 
+        println!("Resolving {}", this.borrow().path.display());
         Self::parse(this.clone())?;
 
         let ast = this.as_ref().borrow_mut().ast.take().unwrap();
@@ -93,7 +94,7 @@ impl Unit {
         }
 
         // Lower all dependencies first.
-        for dependency in &self.dependencies {
+        for dependency in self.dependencies.values() {
             dependency
                 .upgrade()
                 .unwrap()

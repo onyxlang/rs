@@ -8,8 +8,7 @@ use super::Param;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Decl {
     span: Span,
-    pub export: bool,
-    pub default: bool,
+    pub r#pub: bool,
     pub id: Qualifier,
     pub params: Vec<Param>,
     pub return_type: Qualifier,
@@ -18,16 +17,14 @@ pub struct Decl {
 impl Decl {
     pub fn new(
         span: Span,
-        export: bool,
-        default: bool,
+        r#pub: bool,
         id: Qualifier,
         params: Vec<Param>,
         return_type: Qualifier,
     ) -> Self {
         Self {
             span,
-            export,
-            default,
+            r#pub,
             id,
             params,
             return_type,

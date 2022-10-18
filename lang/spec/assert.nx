@@ -1,4 +1,4 @@
-import eq from "./eq.nx"
+import { eq? } from "./eq.nx"
 
 # This is a comment.
 # let x: Bool = false
@@ -6,4 +6,4 @@ let x = false
 x = true;
 let y = true
 # @assert(x)
-@assert(eq(x, y))
+@assert(eq?(x, y))

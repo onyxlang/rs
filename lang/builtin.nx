@@ -1,1 +1,1 @@
-export Bool from "builtin/bool"
+pub import { Bool } from "builtin/bool"

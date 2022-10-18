@@ -65,7 +65,7 @@ impl Scope for dst::Mod {
         );
 
         if dependency.is_err() {
-            panic!("Failed to resolve builtin");
+            panic!("Failed to resolve builtin: {}", dependency.err().unwrap());
         }
 
         dependency
@@ -84,7 +84,7 @@ impl Scope for dst::Mod {
         for i in self.imports.iter() {
             if i.0 == &id.value {
                 println!("Found import for `{}`", id);
-                return Some(i.1.import.clone());
+                return Some(i.1.clone());
             }
         }
 

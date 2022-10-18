@@ -33,9 +33,6 @@ pub mod r#struct;
 pub mod import;
 pub use import::Import;
 
-mod export;
-pub use export::Export;
-
 pub mod function;
 
 mod exportable;
@@ -64,8 +61,7 @@ pub struct Mod {
     pub main: Vec<Statement>,
 
     pub exports: std::collections::HashMap<String, Exportable>,
-    pub default_export: Option<Exportable>,
-    pub imports: std::collections::HashMap<String, Import>,
+    pub imports: std::collections::HashMap<String, Exportable>,
 
     pub decorators_stack: Vec<decorator::Application>,
     pub declarations: std::collections::HashMap<String, Exportable>,
@@ -77,30 +73,16 @@ impl Mod {
             unit,
             main: Vec::new(),
             exports: std::collections::HashMap::new(),
-            default_export: None,
             imports: std::collections::HashMap::new(),
             decorators_stack: Vec::new(),
             declarations: std::collections::HashMap::new(),
         }
     }
 
-    pub fn add_export(&mut self, id: &ast::Id, export: Exportable) -> Result<(), Panic> {
-        self.ensure_not_found(id)?;
-        self.exports.insert(id.value.clone(), export);
-        Ok(())
-    }
-
-    pub fn add_import(&mut self, id: &ast::Id, import: Import) -> Result<(), Panic> {
-        self.ensure_not_found(id)?;
-        self.imports.insert(id.value.clone(), import);
-        Ok(())
-    }
-
-    // TODO: Check if the id is already declared.
-    pub fn resolve_default_import(
+    pub fn resolve_dependency(
         &mut self,
         from: ast::literal::String,
-    ) -> Result<Exportable, Panic> {
+    ) -> Result<Rc<RefCell<Unit>>, Panic> {
         let mut path = self.path();
         path.pop();
         path.push(from.value.clone());
@@ -114,37 +96,32 @@ impl Mod {
 
         let self_unit = self.unit.upgrade().unwrap();
 
-        let dependency = Program::resolve(
-            self_unit.as_ref().borrow().program.upgrade().unwrap(),
-            path.clone(),
-        )?;
-
-        let default = dependency
-            .as_ref()
-            .borrow()
-            .dst
-            .as_ref()
-            .unwrap()
-            .default_export
-            .clone();
-
-        if default.is_none() {
-            return Err(Panic::new(
-                format!(
-                    "Module at \"{}\" doesn't have a default export",
-                    path.display()
-                ),
-                Some(Location::new(self.unit(), from.span())),
-            ));
-        }
-
-        self_unit
+        // Find in the self_unit dependencies if it's already there.
+        let dependency = self_unit
             .as_ref()
             .borrow_mut()
             .dependencies
-            .push(Rc::downgrade(&dependency));
+            .get(&path)
+            .cloned();
 
-        Ok(default.unwrap())
+        if let Some(dependency) = dependency {
+            Ok(dependency.upgrade().unwrap())
+        } else {
+            let strong = Program::resolve(
+                self_unit.as_ref().borrow().program.upgrade().unwrap(),
+                path.clone(),
+            )?;
+
+            let weak = Rc::downgrade(&strong);
+
+            self_unit
+                .as_ref()
+                .borrow_mut()
+                .dependencies
+                .insert(path, weak); // TODO: Expect `None` here.
+
+            Ok(strong)
+        }
     }
 
     pub fn store(&mut self, entity: Exportable) -> Result<(), Panic> {

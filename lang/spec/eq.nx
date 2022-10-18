@@ -1,2 +1,2 @@
 @[Builtin]
-export default decl ƒ eq?(self: Bool, another: Bool) -> Bool
+pub fn eq?(self: Bool, another: Bool) -> Bool;
