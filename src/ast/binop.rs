@@ -1,8 +1,8 @@
 use super::Expr;
 use crate::location::{HasSpan, Span};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Binop {
     span: Span,
     pub lhs: Box<Expr>,
@@ -31,15 +31,9 @@ impl PartialEq for Binop {
     }
 }
 
-impl Debug for Binop {
+impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?} {:?} {:?}",
-            self.lhs.as_ref(),
-            self.op,
-            self.rhs.as_ref()
-        )
+        write!(f, "{} {} {}", self.lhs.as_ref(), self.op, self.rhs.as_ref())
     }
 }
 

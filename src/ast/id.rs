@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 /// An Onyx identifier node.
 // TODO: Wrapped ids.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Id {
     span: Span,
     pub value: String,
@@ -21,15 +21,9 @@ impl PartialEq for Id {
     }
 }
 
-impl Debug for Id {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Id`{}`@{:?}", self.value, self.span)
-    }
-}
-
 impl Display for Id {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "`{}`", self.value)
     }
 }
 

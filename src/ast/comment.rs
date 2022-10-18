@@ -1,6 +1,7 @@
 use crate::location::{HasSpan, Span};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
+#[derive(Debug)]
 pub struct Comment {
     span: Span,
     pub text: String,
@@ -18,7 +19,7 @@ impl PartialEq for Comment {
     }
 }
 
-impl Debug for Comment {
+impl Display for Comment {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "##{}", self.text)
     }

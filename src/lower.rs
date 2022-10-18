@@ -85,7 +85,7 @@ impl Lowerable for dst::Statement {
 
 impl Lowerable for dst::VarRef {
     fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "@\"{}\"", self.decl.id())
+        write!(w, "@\"{}\"", self.decl.id().value)
     }
 }
 
@@ -135,7 +135,7 @@ impl Lowerable for dst::Call {
 
 impl Lowerable for dst::VarDecl {
     fn lower(&self, w: &mut dyn Write) -> io::Result<()> {
-        write!(w, "var @\"{}\" = ", self.id())?;
+        write!(w, "var @\"{}\" = ", self.id().value)?;
         self.expr.lower(w)?;
         Ok(())
     }

@@ -3,7 +3,7 @@ use crate::location::Span;
 use std::fmt::Display;
 
 /// A decorator node, e.g. `@[Builtin]`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Decorator {
     span: Span,
     pub id: Id,
@@ -18,12 +18,6 @@ impl Decorator {
 impl PartialEq for Decorator {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
-    }
-}
-
-impl std::fmt::Debug for Decorator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Decorator{{id: {:?}}}", self.id)
     }
 }
 

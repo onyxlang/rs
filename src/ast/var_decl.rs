@@ -1,8 +1,8 @@
 use super::{Expr, Id};
 use crate::location::{HasSpan, Span};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarDecl {
     span: Span,
     pub id: Id,
@@ -21,9 +21,9 @@ impl PartialEq for VarDecl {
     }
 }
 
-impl Debug for VarDecl {
+impl Display for VarDecl {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} = {:?}", self.id, self.expr)
+        write!(f, "let {} = {}", self.id, self.expr)
     }
 }
 

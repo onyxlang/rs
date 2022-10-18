@@ -5,7 +5,7 @@ use crate::{
 use std::fmt::{Debug, Display, Formatter};
 
 /// A struct definition node.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Def {
     span: Span,
     pub r#pub: bool,
@@ -22,12 +22,6 @@ impl Def {
 impl PartialEq for Def {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
-    }
-}
-
-impl Debug for Def {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "StructDef{{id: {:?}}}", self.id)
     }
 }
 

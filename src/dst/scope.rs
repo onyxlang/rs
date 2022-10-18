@@ -29,7 +29,7 @@ pub trait Scope {
     fn ensure_not_found(&self, id: &ast::Id) -> Result<(), Panic> {
         if let Some(found) = self.search(id) {
             let mut panic = Panic::new(
-                format!("`{}` already declared", id.value),
+                format!("{} already declared", id.value),
                 Some(Location::new(self.unit(), id.span())),
             );
 
@@ -55,7 +55,7 @@ impl Scope for dst::Mod {
     }
 
     fn search_builtin(&self, id: &ast::Id) -> Option<Exportable> {
-        println!("Searching builtin for `{}`", id);
+        println!("Searching builtin for {}", id);
 
         let self_unit = self.unit.upgrade().unwrap();
 
@@ -79,37 +79,37 @@ impl Scope for dst::Mod {
     }
 
     fn search(&self, id: &ast::Id) -> Option<Exportable> {
-        println!("Searching \"{}\" for `{}`", self.path().display(), id);
+        println!("Searching \"{}\" for {}", self.path().display(), id);
 
         for i in self.imports.iter() {
             if i.0 == &id.value {
-                println!("Found import for `{}`", id);
+                println!("Found import for {}", id);
                 return Some(i.1.clone());
             }
         }
 
         for e in self.exports.iter() {
             if e.0 == &id.value {
-                println!("Found export for `{}`", id);
+                println!("Found export for {}", id);
                 return Some(e.1.clone());
             }
         }
 
         for i in self.declarations.iter() {
             if i.0 == &id.value {
-                println!("Found declaration for `{}`", id);
+                println!("Found declaration for {}", id);
                 return Some(i.1.clone());
             }
         }
 
         if self.path() != PathBuf::from("builtin") && !self.path().starts_with("builtin/") {
             if let Some(found) = self.search_builtin(id) {
-                println!("Found builtin for `{}`", id);
+                println!("Found builtin for {}", id);
                 return Some(found);
             }
         }
 
-        println!("Not found `{}`", id);
+        println!("Not found {}", id);
         None
     }
 

@@ -2,7 +2,7 @@ use crate::location::{HasSpan, Span};
 use std::fmt::{Debug, Display, Formatter};
 
 /// A string literal node.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct String {
     span: Span,
     pub value: std::string::String,
@@ -17,12 +17,6 @@ impl String {
 impl PartialEq for String {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
-    }
-}
-
-impl Debug for String {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "String\"{}\"", self.value)
     }
 }
 

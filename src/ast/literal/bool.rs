@@ -2,7 +2,7 @@ use crate::location::{HasSpan, Span};
 use std::fmt::{Debug, Display, Formatter};
 
 /// A boolean literal node.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Bool {
     span: Span,
     pub value: bool,
@@ -17,12 +17,6 @@ impl Bool {
 impl PartialEq for Bool {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
-    }
-}
-
-impl Debug for Bool {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Bool<{}>", self.value)
     }
 }
 

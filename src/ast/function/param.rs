@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     ast::{Id, Qualifier},
     location::Span,
@@ -13,5 +15,11 @@ pub struct Param {
 impl Param {
     pub fn new(span: Span, id: Id, r#type: Qualifier) -> Self {
         Self { span, id, r#type }
+    }
+}
+
+impl Display for Param {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.id, self.r#type)
     }
 }

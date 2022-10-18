@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     ast::Qualifier,
     location::{HasSpan, Span},
@@ -35,5 +37,25 @@ impl Decl {
 impl HasSpan for Decl {
     fn span(&self) -> Span {
         self.span
+    }
+}
+
+impl Display for Decl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.r#pub {
+            write!(f, "pub ")?;
+        }
+
+        write!(f, "fn {}(", self.id)?;
+
+        for (i, param) in self.params.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+
+            write!(f, "{}", param)?;
+        }
+
+        write!(f, ") -> {}", self.return_type)
     }
 }

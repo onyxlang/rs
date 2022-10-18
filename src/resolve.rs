@@ -46,7 +46,7 @@ impl ast::Mod {
                                 .search(id)
                                 .ok_or_else(|| {
                                     Panic::new(
-                                        format!("`{}` not found in {}", id.value, i.from),
+                                        format!("{} not found in {}", id, i.from),
                                         Some(Location::new(dst_module.unit(), id.span())),
                                     )
                                 })?;
@@ -116,7 +116,7 @@ impl Resolve<dst::decorator::Application> for ast::Decorator {
 
             // TODO: Lookup for the decorator definition in the scope.
             _ => Err(Panic::new(
-                format!("Unknown decorator `{}`", &self.id.value),
+                format!("Unknown decorator {}", &self.id),
                 Some(Location::new(scope.unit(), self.id.span())),
             )),
         }
@@ -149,7 +149,7 @@ impl Resolve<Rc<RefCell<dst::r#struct::Decl>>> for ast::r#struct::Def {
                         }
                         &_ => {
                             return Err(Panic::new(
-                                format!("Unknown builtin struct `{}`", &self.id.value),
+                                format!("Unknown builtin struct {}", &self.id),
                                 Some(Location::new(scope.unit(), self.id.span())),
                             ))
                         }
@@ -200,7 +200,7 @@ impl Resolve<Rc<RefCell<dst::function::Decl>>> for ast::function::Decl {
                         }
                         &_ => {
                             return Err(Panic::new(
-                                format!("Unknown builtin function `{}`", &self.id),
+                                format!("Unknown builtin function {}", &self.id),
                                 Some(Location::new(scope.unit(), self.id.span())),
                             ))
                         }
@@ -279,7 +279,7 @@ impl Resolve<Rc<dst::Expr>> for ast::Expr {
                         if r#ref.decl.r#type != *rhs_type.as_ref().unwrap() {
                             return Err(Panic::new(
                                 format!(
-                                    "Type mismatch: left is `{}`, right is `{}`",
+                                    "Type mismatch: left is {}, right is {}",
                                     r#ref.decl.r#type.as_ref().borrow(),
                                     rhs_type.unwrap().as_ref().borrow()
                                 ),

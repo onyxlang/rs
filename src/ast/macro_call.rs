@@ -1,8 +1,8 @@
 use super::{Expr, Id};
 use crate::location::{HasSpan, Span};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MacroCall {
     span: Span,
     pub id: Id,
@@ -21,9 +21,19 @@ impl PartialEq for MacroCall {
     }
 }
 
-impl Debug for MacroCall {
+impl Display for MacroCall {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}({:?})", self.id, self.args)
+        write!(f, "@{}(", self.id)?;
+
+        for (i, e) in self.args.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+
+            write!(f, "{}", e)?;
+        }
+
+        write!(f, ")")
     }
 }
 
