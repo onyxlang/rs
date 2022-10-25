@@ -1,0 +1,23 @@
+- [x] Onyx panic specs
+- [x] Compile / run program
+- [x] Import / export ~~default~~
+- [x] `@[Builtin] struct Bool`
+- [x] `@[Builtin] decl ƒ eq?(self: Bool, other: Bool) -> Bool`
+- [x] Implicit builtin import
+- [x] Locations refactoring
+- [x] Scope refactoring
+- [ ] Introduce qualifiers
+  - [x] Start w/ simple ids
+- [x] Replace `export (default)` w/ `pub`
+- [x] Function is declared w/ `fn`
+- [ ] Struct decls (`pub struct Foo { }`)
+  - [ ] Fields (`pub x: T`)
+- [ ] Freestanding function decls (`fn main();`, `fn Foo::main` (?))
+- [ ] Freestanding function impls
+- [ ] Struct function decls (`pub fn foo();`)
+- [ ] Struct function impls (`pub fn foo() { }`)
+- [ ] `@[Builtin] function Bool::eq?(self, other: Bool) -> Bool`
+- [ ] `@[Builtin] function ::eq?(self: Bool, other: Bool) -> Bool`
+- [ ] `@[Builtin] function .eq?(other: Self) -> Self`
+- [ ] Freestanding runtime type annotation (`x : Bool`)
+- [ ] `alias == to eq?`
